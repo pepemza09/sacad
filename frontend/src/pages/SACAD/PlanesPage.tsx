@@ -504,39 +504,52 @@ export default function PlanesPage() {
                 {form.titulos_intermedios.length === 0 ? (
                   <p className="text-sm text-gray-400">No tiene títulos intermedios.</p>
                 ) : (
-                  <div className="space-y-3">
-                    {form.titulos_intermedios.map((t, idx) => (
-                      <div key={idx} className="flex items-start gap-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            placeholder="Nombre del título"
-                            value={t.nombre}
-                            onChange={(e) => updateTituloIntermedio(idx, "nombre", e.target.value)}
-                            className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400"
-                          />
-                        </div>
-                        <div className="w-24">
-                          <input
-                            type="number"
-                            min="1"
-                            placeholder="Años"
-                            value={t.duracion_anos}
-                            onChange={(e) => updateTituloIntermedio(idx, "duracion_anos", Number(e.target.value) || 1)}
-                            className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeTituloIntermedio(idx)}
-                          className="mt-1.5 p-1 rounded text-gray-400 hover:text-error-500"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
+                  <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-50 dark:bg-gray-800">
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Título que otorga</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider w-32">Duración (años)</th>
+                          <th className="px-4 py-2.5 w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {form.titulos_intermedios.map((t, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2">
+                              <input
+                                type="text"
+                                placeholder="Nombre del título"
+                                value={t.nombre}
+                                onChange={(e) => updateTituloIntermedio(idx, "nombre", e.target.value)}
+                                className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Años"
+                                value={t.duracion_anos}
+                                onChange={(e) => updateTituloIntermedio(idx, "duracion_anos", Number(e.target.value) || 1)}
+                                className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <button
+                                type="button"
+                                onClick={() => removeTituloIntermedio(idx)}
+                                className="p-1 rounded text-gray-400 hover:text-error-500"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
