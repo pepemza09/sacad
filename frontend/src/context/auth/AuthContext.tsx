@@ -10,6 +10,7 @@ export interface User {
   is_staff: boolean;
   groups: number[];
   foto?: string | null;
+  zoom_level?: number;
 }
 
 interface AuthContextType {
@@ -31,7 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       apiClient
         .get("/auth/me/")
-        .then((res) => setUser(res.data))
+        .then((res) => {
+          setUser(res.data);
+          if (res.data.zoom_level) {
+            document.documentElement.style.fontSize = `${res.data.zoom_level}%`;
+          }
+        })
         .catch(() => {
           sessionStorage.removeItem("access_token");
           sessionStorage.removeItem("refresh_token");

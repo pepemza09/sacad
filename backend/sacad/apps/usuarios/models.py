@@ -20,6 +20,7 @@ class Profile(models.Model):
     )
     approved_at = models.DateTimeField(null=True, blank=True)
     rejected_at = models.DateTimeField(null=True, blank=True)
+    zoom_level = models.FloatField(default=100.0, help_text="Zoom en porcentaje (50-200)")
 
     def __str__(self):
         return f"Profile of {self.user.email}"

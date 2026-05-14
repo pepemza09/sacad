@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
+import { ZoomControl } from "../components/common/ZoomControl";
 import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
 
@@ -167,7 +168,9 @@ const AppHeader: React.FC = () => {
           <div className="flex items-center gap-2 2xsm:gap-3">
             {/* <!-- Dark Mode Toggler --> */}
             <ThemeToggleButton />
-            {/* <!-- Dark Mode Toggler --> */}
+            {/* <!-- Zoom Control --> */}
+            <ZoomControl />
+            {/* <!-- Zoom Control --> */}
             <NotificationDropdown />
             {/* <!-- Notification Menu Area --> */}
           </div>

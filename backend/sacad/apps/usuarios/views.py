@@ -22,6 +22,24 @@ def me(request):
     return Response(serializer.data)
 
 
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_zoom(request):
+    try:
+        profile = request.user.profile
+    except Profile.DoesNotExist:
+        profile = Profile.objects.create(user=request.user)
+    zoom = request.data.get("zoom_level")
+    if zoom is None:
+        return Response({"error": "zoom_level es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+    zoom = float(zoom)
+    if zoom < 50 or zoom > 200:
+        return Response({"error": "zoom_level debe estar entre 50 y 200"}, status=status.HTTP_400_BAD_REQUEST)
+    profile.zoom_level = zoom
+    profile.save(update_fields=["zoom_level"])
+    return Response({"zoom_level": zoom})
+
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def email_login(request):

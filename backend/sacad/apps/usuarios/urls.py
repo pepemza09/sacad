@@ -24,4 +24,5 @@ urlpatterns = [
     path("allowed-domains/<int:domain_id>/", views.delete_allowed_domain, name="delete-allowed-domain"),
     path("groups/", views.groups_list, name="groups-list"),
     path("users/<int:user_id>/groups/", views.update_user_groups, name="update-user-groups"),
+    path("update-zoom/", views.update_zoom, name="update-zoom"),
 ]
