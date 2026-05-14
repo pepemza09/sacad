@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - sacad_postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    command: gunicorn sacad.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    environment:
+      DJANGO_SETTINGS_MODULE: sacad.settings.production
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: "False"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_PORT: "5432"
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  sacad_postgres_data:
+  static_volume:
+  media_volume:

@@ -1,0 +1,643 @@
+{
+  "project": {
+    "name": "SACAD",
+    "description": "Sistema de Administración de Carreras Académicas y Docentes",
+    "full_description": "Sistema de Administración de Carreras, Actividades y Docentes",
+    "domain": "sacad.localhost",
+    "version": "1.0.0"
+  },
+  "architecture": {
+    "summary": "Monorepo con backend Django REST Framework + frontend React (Vite + Tailwind CSS v4) + PostgreSQL, orquestado con Docker Compose. Nginx como proxy inverso.",
+    "services": {
+      "db": {
+        "image": "postgres:16-alpine",
+        "port": 5432,
+        "volume": "sacad_postgres_data:/var/lib/postgresql/data",
+        "healthcheck": "pg_isready -U sacad"
+      },
+      "backend": {
+        "language": "Python 3.12-slim",
+        "framework": "Django 5.1.7 + Django REST Framework 3.15.2",
+        "port": 8000,
+        "server": "gunicorn with 4 workers, 120s timeout",
+        "entrypoint": "entrypoint.sh (migrate -> collectstatic -> gunicorn)",
+        "env_settings": "DJANGO_SETTINGS_MODULE=sacad.settings.development (dev) / sacad.settings.production (prod)"
+      },
+      "frontend": {
+        "language": "TypeScript (React 19)",
+        "build": "Vite 6.1.0",
+        "styling": "Tailwind CSS v4 (PostCSS plugin @tailwindcss/postcss)",
+        "port": "80 (nginx), 5173 (vite dev)",
+        "static_server": "nginx:alpine serving dist/",
+        "node_version": "20-alpine (build stage)"
+      },
+      "nginx_reverse_proxy": {
+        "purpose": "Frontend that proxies API/admin/accounts/static/media to backend",
+        "config": "frontend/nginx.conf (standalone) OR nginx/nginx.conf + nginx/frontend.conf (dedicated reverse proxy with upstreams)",
+        "client_max_body_size": "20M"
+      }
+    },
+    "deployment_options": {
+      "development": "docker compose up -d (reads .env, uses development settings)",
+      "production": "docker compose -f docker-compose.prod.yml up -d (production settings, SSL-ready)",
+      "local_backend": "make dev-backend (python manage.py runserver)",
+      "local_frontend": "make dev-frontend (npm run dev with proxy to localhost:8000)"
+    }
+  },
+  "directories": {
+    "root": "/home/victor_costa_fce/sacad",
+    "backend": "backend/",
+    "frontend": "frontend/",
+    "nginx": "nginx/",
+    "backups": "backups/",
+    "scripts": "scripts/"
+  },
+  "backend": {
+    "python_dependencies": {
+      "Django": "5.1.7",
+      "djangorestframework": "3.15.2",
+      "django-cors-headers": "4.6.0",
+      "django-filter": "25.1",
+      "django-allauth": "65.5.0",
+      "djangorestframework-simplejwt": "5.5.0",
+      "psycopg2-binary": "2.9.10",
+      "gunicorn": "23.0.0",
+      "drf-spectacular": "0.28.0",
+      "django-extensions": "3.2.3",
+      "django-debug-toolbar": "5.1.0",
+      "requests": "2.32.3",
+      "cryptography": "44.0.2",
+      "python-decouple": "3.8",
+      "Pillow": "11.1.0"
+    },
+    "settings": {
+      "base.py": {
+        "SECRET_KEY": "from env via python-decouple",
+        "DEBUG": "from env, default False",
+        "ALLOWED_HOSTS": "comma-separated from env, default *",
+        "DATABASES": "PostgreSQL, configured via env vars",
+        "INSTALLED_APPS": ["django.contrib.admin", "auth", "contenttypes", "sessions", "messages", "staticfiles", "sites", "rest_framework", "rest_framework_simplejwt", "corsheaders", "django_filters", "drf_spectacular", "allauth", "allauth.account", "allauth.socialaccount", "allauth.socialaccount.providers.google", "sacad.apps.academica", "sacad.apps.usuarios", "sacad.apps.equivalencias"],
+        "MIDDLEWARE": ["corsheaders", "security", "sessions", "common", "csrf", "auth", "messages", "clickjacking", "allauth.account"],
+        "REST_FRAMEWORK": {
+          "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
+          "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+          "DEFAULT_FILTER_BACKENDS": ["django_filters", "SearchFilter", "OrderingFilter"],
+          "DEFAULT_PAGINATION_CLASS": "PageNumberPagination",
+          "PAGE_SIZE": 50,
+          "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema"
+        },
+        "SIMPLE_JWT": {
+          "ACCESS_TOKEN_LIFETIME": "4 hours",
+          "REFRESH_TOKEN_LIFETIME": "7 days",
+          "AUTH_HEADER_TYPES": ["Bearer"]
+        },
+        "SOCIALACCOUNT_PROVIDERS": {
+          "google": {
+            "APP": "client_id/secret from env",
+            "SCOPE": ["profile", "email"],
+            "AUTH_PARAMS": {"access_type": "online"}
+          }
+        },
+        "SOCIALACCOUNT_ADAPTER": "sacad.apps.usuarios.adapters.FCEGoogleAccountAdapter",
+        "SOCIALACCOUNT_LOGIN_ON_GET": true,
+        "SOCIALACCOUNT_LOGIN_REDIRECT_URL": "/api/auth/google/complete/",
+        "LOGIN_REDIRECT_URL": "/",
+        "ACCOUNT_EMAIL_REQUIRED": true,
+        "ACCOUNT_EMAIL_VERIFICATION": "none",
+        "ACCOUNT_LOGOUT_ON_GET": true,
+        "FRONTEND_URL": "from env, default http://localhost:80",
+        "SACAD_DOMAIN_RESTRICTION": "from env, default @fce.uncu.edu.ar",
+        "CORS_ALLOW_ALL_ORIGINS": "true when DEBUG, else from env",
+        "LANGUAGE_CODE": "es-ar",
+        "TIME_ZONE": "America/Argentina/Mendoza",
+        "STATIC_URL": "static/",
+        "MEDIA_URL": "media/"
+      },
+      "development.py": {
+        "DEBUG": true,
+        "ALLOWED_HOSTS": ["*"],
+        "CORS_ALLOW_ALL_ORIGINS": true,
+        "EXTRA_APPS": ["django_extensions", "debug_toolbar"],
+        "EMAIL_BACKEND": "console"
+      },
+      "production.py": {
+        "DEBUG": false,
+        "SECURE_SSL_REDIRECT": true,
+        "SESSION_COOKIE_SECURE": true,
+        "CSRF_COOKIE_SECURE": true,
+        "HSTS": true
+      }
+    },
+    "urls_root": {
+      "admin/": "django.contrib.admin",
+      "api/schema/": "drf_spectacular schema",
+      "api/docs/": "Swagger UI",
+      "api/auth/": "usuarios app (JWT login, Google callback, etc.)",
+      "api/": ["academica app (facultades, sedes, carreras, planes, materias, correlatividades, dashboard)", "equivalencias app"],
+      "accounts/": "allauth URLs (Google OAuth flow)",
+      "debug toolbar + media": "only when DEBUG=True"
+    },
+    "apps": {
+      "academica": {
+        "models": {
+          "Facultad": {
+            "fields": {
+              "codigo": "CharField(max_length=20, unique=True)",
+              "nombre_corto": "CharField(max_length=100)",
+              "nombre": "CharField(max_length=255)",
+              "decano": "ForeignKey(User, null, blank, SET_NULL)",
+              "activa": "BooleanField(default=True)"
+            },
+            "ordering": "nombre",
+            "verbose_name": "Facultad/Facultades"
+          },
+          "Sede": {
+            "fields": {
+              "codigo": "CharField(max_length=20)",
+              "nombre": "CharField(max_length=255)",
+              "facultad": "ForeignKey(Facultad, CASCADE, related_name='sedes')",
+              "activa": "BooleanField(default=True)",
+              "direccion": "CharField(max_length=255, blank=True, default='')",
+              "localidad": "CharField(max_length=100, blank=True, default='')"
+            },
+            "unique_together": ["facultad", "codigo"],
+            "ordering": ["facultad", "nombre"]
+          },
+          "Carrera": {
+            "fields": {
+              "facultad": "ForeignKey(Facultad, CASCADE, related_name='carreras')",
+              "codigo": "CharField(max_length=20)",
+              "codigo_ministerial": "CharField(max_length=20, blank=True, default='')",
+              "nombre_corto": "CharField(max_length=255, blank=True, default='')",
+              "nombre": "CharField(max_length=255)",
+              "titulo_otorga": "CharField(max_length=255, blank=True, default='')",
+              "duracion_anos": "PositiveSmallIntegerField(default=1)",
+              "nivel": "ChoiceField(grado/pregrado/posgrado, default=grado)",
+              "modalidad": "ChoiceField(presencial/distancia/mixta, default=presencial)",
+              "sedes": "ManyToManyField(Sede, blank=True, related_name='carreras')",
+              "director": "ForeignKey(User, null, blank, SET_NULL)",
+              "activa": "BooleanField(default=True)"
+            },
+            "unique_together": ["facultad", "codigo"],
+            "ordering": ["facultad", "nombre"]
+          },
+          "PlanEstudio": {
+            "fields": {
+              "carrera": "ForeignKey(Carrera, CASCADE, related_name='planes')",
+              "version": "CharField(max_length=50)",
+              "año_aprobacion": "PositiveIntegerField()",
+              "resolucion": "CharField(max_length=100)",
+              "total_horas": "PositiveIntegerField()",
+              "vigente": "BooleanField(default=False)",
+              "fecha_vigencia_desde": "DateField(null, blank)",
+              "observaciones": "TextField(blank=True)"
+            },
+            "unique_together": ["carrera", "version"],
+            "custom_logic": "save() auto-deactivates other vigente plans for same carrera; clean() validates only one vigente plan per carrera"
+          },
+          "Materia": {
+            "fields": {
+              "plan_estudio": "ForeignKey(PlanEstudio, CASCADE, related_name='materias')",
+              "codigo": "CharField(max_length=20)",
+              "nombre": "CharField(max_length=255)",
+              "año": "PositiveSmallIntegerField()",
+              "cuatrimestre": "ChoiceField(1/2/anual)",
+              "carga_horaria_semanal": "PositiveIntegerField()",
+              "carga_horaria_total": "PositiveIntegerField()",
+              "tipo": "ChoiceField(obligatoria/optativa/electiva)",
+              "contenidos_minimos": "TextField(blank=True)"
+            },
+            "unique_together": ["plan_estudio", "codigo"]
+          },
+          "Correlatividad": {
+            "fields": {
+              "materia": "ForeignKey(Materia, CASCADE, related_name='correlativas')",
+              "materia_requerida": "ForeignKey(Materia, CASCADE, related_name='requisito_de')",
+              "tipo": "ChoiceField(cursar/aprobar/regular)"
+            },
+            "unique_together": ["materia", "materia_requerida", "tipo"],
+            "validation": "materia.plan_estudio must equal materia_requerida.plan_estudio"
+          }
+        },
+        "serializers": {
+          "FacultadSerializer": "full fields, validates nombre_corto and nombre case-insensitive uniqueness (excludes self on update)",
+          "FacultadListSerializer": "id, codigo, nombre_corto, nombre, activa + carreras_count (SerializerMethodField) + sedes_count (SerializerMethodField)",
+          "SedeSerializer": "all fields + facultad_nombre (read-only)",
+          "SedeListSerializer": "subset fields + facultad_nombre",
+          "CarreraSerializer": "all fields + facultad_nombre + sedes (PrimaryKeyRelatedField, many) + sedes_nombres (SerializerMethodField). codigo defaults to codigo_ministerial or 'sin-codigo'",
+          "CarreraListSerializer": "id, codigo_ministerial, nombre_corto, nombre, facultad, facultad_nombre, sedes_nombres, activa",
+          "PlanEstudioSerializer": "all fields + carrera_nombre + materias_count",
+          "MateriaSerializer": "all fields",
+          "MateriaDetailSerializer": "all fields + correlativas (SerializerMethodField) + requisito_de (SerializerMethodField)",
+          "CorrelatividadSerializer": "all fields",
+          "ArbolCurricularSerializer": "año, cuatrimestre, materias (nested)"
+        },
+        "views": {
+          "FacultadViewSet": "ModelViewSet. List uses FacultadListSerializer. Create/update/destroy requires EsAdminUniversidad permission. destroy catches ProtectedError (409), perform_destroy checks sedes.exists() first, then carreras.exists()",
+          "SedeViewSet": "ModelViewSet. select_related('facultad'). List uses SedeListSerializer. Create/update/destroy requires EsSecretarioAcademico. perform_destroy checks carreras.exists() and raises ProtectedError (caught in custom destroy returning 409)",
+          "CarreraViewSet": "ModelViewSet. select_related('facultad'). List uses CarreraListSerializer. Create/update/destroy requires EsSecretarioAcademico. perform_destroy checks planes.exists() (ProtectedError → 409)",
+          "PlanEstudioViewSet": "ModelViewSet. select_related('carrera'). Extra actions: arbol_curricular(detail), recientes(list, top 10). perform_create ensures only one vigente plan",
+          "MateriaViewSet": "ModelViewSet. select_related('plan_estudio'). Detail uses MateriaDetailSerializer. Extra action: correlativas(detail). Create/update/destroy requires EsDirectorCarrera",
+          "CorrelatividadViewSet": "ModelViewSet. select_related('materia','materia_requerida'). Requires EsDirectorCarrera"
+        },
+        "filters": {
+          "FacultadFilter": "activa (exact), nombre (icontains)",
+          "SedeFilter": "activa (exact), facultad (exact), nombre (icontains)",
+          "CarreraFilter": "facultad, activa, nivel, modalidad (exact), codigo_ministerial, nombre_corto (icontains)",
+          "PlanEstudioFilter": "carrera, vigente (exact), año_aprobacion (exact, gte, lte)",
+          "MateriaFilter": "plan_estudio (exact), año (NumberFilter), cuatrimestre, tipo (exact)"
+        },
+        "permissions": {
+          "EsAdminUniversidad": "is_superuser OR group 'Admin Universidad'",
+          "EsSecretarioAcademico": "is_superuser OR groups ['Admin Universidad', 'Secretario Académico']",
+          "EsDirectorCarrera": "is_superuser OR groups ['Admin Universidad', 'Secretario Académico', 'Director Carrera']",
+          "EsDocente": "is_authenticated (any authenticated user)",
+          "EsDeSuFacultad": "object-level: superuser OR obj.facultad.decano == request.user OR obj.carrera.director == request.user"
+        },
+        "urls": {
+          "router": "facultades, sedes, carreras, planes, materias, correlatividades",
+          "extra": "dashboard/stats/ (dashboard_stats view)"
+        },
+        "dashboard": {
+          "endpoint": "GET /api/dashboard/stats/?facultad=X",
+          "returns": {
+            "total_facultades": "count activa=True",
+            "total_carreras": "count activa=True",
+            "planes_vigentes": "count vigente=True",
+            "total_materias": "count all",
+            "carreras_por_facultad": "{facultad_nombre: count}",
+            "materias_por_año": "{año: count} (from vigente plans only)",
+            "ultimos_planes": "top 10 by año_aprobacion desc"
+          }
+        }
+      },
+      "usuarios": {
+        "models": {
+          "Profile": {
+            "fields": {
+              "user": "OneToOneField(User, CASCADE, related_name='profile')",
+              "foto": "ImageField(upload_to='fotos_perfil/', blank=True, null=True)"
+            }
+          }
+        },
+        "serializers": {
+          "UserSerializer": "id, username, email, first_name, last_name, is_staff, groups, foto (from profile)",
+          "TokenResponseSerializer": "access, refresh, user (nested UserSerializer)",
+          "ProfileSerializer": "foto",
+          "EmailTokenObtainSerializer": "validates email+password, checks is_active, returns user"
+        },
+        "views": {
+          "me": "GET /auth/me/ - returns current user",
+          "email_login": "POST /auth/login/ - email+password → JWT tokens + user",
+          "google_login": "POST /auth/google/ - placeholder, actual flow is via allauth",
+          "logout": "POST /auth/logout/ - blacklists refresh token",
+          "profile_detail": "GET/PUT/PATCH /auth/profile/ - manages Profile.foto",
+          "google_complete": "GET /auth/google/complete/ - allauth callback handler, redirects to frontend with JWT tokens as URL params",
+          "pending_users": "GET /auth/pending-users/ - staff only, lists is_active=False users",
+          "approve_user": "PATCH /auth/approve-user/<id>/ - staff only, sets is_active=True"
+        },
+        "urls": {
+          "paths": [
+            "me/", "login/", "google/", "google/complete/", "logout/",
+            "profile/", "token/", "token/refresh/", "token/verify/",
+            "pending-users/", "approve-user/<int:user_id>/"
+          ]
+        },
+        "google_oauth_adapter": {
+          "class": "FCEGoogleAccountAdapter(DefaultSocialAccountAdapter)",
+          "behaviors": {
+            "domain_restriction": "email must contain SACAD_DOMAIN_RESTRICTION (default @fce.uncu.edu.ar), otherwise ImmediateHttpResponse redirect to /accounts/login/ with error message",
+            "new_users": "if user has no pk (new), set username=email prefix, is_active=False, save, and ImmediateHttpResponse redirect to FRONTEND_URL/auth/pending",
+            "existing_approved": "existing active users can login normally (adapter does not intervene)"
+          }
+        },
+        "admin": {
+          "UserAdmin (custom SACADUserAdmin)": "list_display=[email, username, first_name, last_name, is_active, is_staff], action: approve_users",
+          "ProfileAdmin": "list_display=[user, foto]"
+        }
+      },
+      "equivalencias": {
+        "models": {
+          "Equivalencia": {
+            "fields": {
+              "plan_destino": "ForeignKey(PlanEstudio, CASCADE, related_name='equivalencias_destino')",
+              "materias_origen": "ManyToManyField(Materia, related_name='equivalencias_origen')",
+              "materias_destino": "ManyToManyField(Materia, related_name='equivalencias_destino')",
+              "tipo": "ChoiceField(total/parcial, default=total)",
+              "resolucion": "CharField(max_length=100, blank=True)",
+              "porcentaje": "PositiveSmallIntegerField(null, blank, for partial)",
+              "observaciones": "TextField(blank=True)",
+              "activa": "BooleanField(default=True)"
+            },
+            "validation": "clean() checks that all materias_origen and materias_destino belong to same carrera via plan_estudio.carrera"
+          }
+        },
+        "engine": {
+          "class": "EquivalenciasEngine",
+          "methods": {
+            "resolver_directas": "finds direct equivalencias matching materia_origen_id + plan_destino_id + activa=True",
+            "resolver_en_cascada": "recursively follows equivalencia chains: if A=B+C and B=D, then A=D+C. Uses BFS loop",
+            "validar_sin_ciclos": "static, checks no A->B and B->A cycle exists",
+            "get_stats_plan": "static, counts equivalencias as origen/destino for a plan"
+          }
+        },
+        "serializers": {
+          "EquivalenciaSerializer": "all fields + plan_destino_nombre + materias_origen_display + materias_destino_display (all SerializerMethodField). Validates at least one origen and destino on create/update",
+          "EquivalenciaConsultaSerializer": "materia_origen_id, plan_destino_id"
+        },
+        "views": {
+          "EquivalenciaViewSet": "ModelViewSet. prefetch_related('materias_origen','materias_destino'). Filters by plan_destino and materia_origen query params. Extra actions: consultar (GET, resolves cascade), validar (POST, checks cycles)"
+        }
+      }
+    }
+  },
+  "frontend": {
+    "npm_dependencies": {
+      "react": "^19.0.0",
+      "react-dom": "^19.0.0",
+      "react-router": "^7.1.5",
+      "axios": "^1.7.9",
+      "react-helmet-async": "^2.0.5",
+      "@fullcalendar/react": "^6.1.15",
+      "@fullcalendar/core": "^6.1.15",
+      "@fullcalendar/daygrid": "^6.1.15",
+      "@fullcalendar/interaction": "^6.1.15",
+      "@fullcalendar/list": "^6.1.15",
+      "@fullcalendar/timegrid": "^6.1.15",
+      "apexcharts": "^4.1.0",
+      "react-apexcharts": "^1.7.0",
+      "@react-jvectormap/core": "^1.0.4",
+      "@react-jvectormap/world": "^1.1.2",
+      "tailwind-merge": "^3.0.1",
+      "clsx": "^2.1.1",
+      "flatpickr": "^4.6.13",
+      "swiper": "^11.2.3",
+      "react-dropzone": "^14.3.5",
+      "react-dnd": "^16.0.1",
+      "react-dnd-html5-backend": "^16.0.1"
+    },
+    "dev_dependencies": {
+      "typescript": "~5.7.2",
+      "vite": "^6.1.0",
+      "vite-plugin-svgr": "^4.3.0",
+      "@vitejs/plugin-react": "^4.3.4",
+      "@tailwindcss/postcss": "^4.0.8",
+      "tailwindcss": "^4.0.8",
+      "postcss": "^8.5.2",
+      "eslint": "^9.19.0",
+      "typescript-eslint": "^8.22.0",
+      "@types/react": "^19.0.12",
+      "@types/react-dom": "^19.0.4"
+    },
+    "vite_config": {
+      "plugins": ["react", "svgr (icon, namedExport=ReactComponent)"],
+      "dev_server_port": 5173,
+      "proxy": {
+        "/api": "http://localhost:8000",
+        "/accounts": "http://localhost:8000",
+        "/admin": "http://localhost:8000"
+      }
+    },
+    "tailwind_config": {
+      "file": "postcss.config.js (plugin @tailwindcss/postcss)",
+      "css_file": "src/index.css (Tailwind v4 @import + @theme directive for custom colors/fonts/shadows)",
+      "custom_colors": {
+        "brand": { "50": "#ecf3ff", "100": "#dde9ff", "200": "#c2d6ff", "300": "#9cb9ff", "400": "#7592ff", "500": "#465fff", "600": "#3641f5", "700": "#2a31d8", "800": "#252dae", "900": "#262e89", "950": "#161950" },
+        "gray": { "25": "#fcfcfd", "50": "#f9fafb", "100": "#f2f4f7", "200": "#e4e7ec", "300": "#d0d5dd", "400": "#98a2b3", "500": "#667085", "600": "#475467", "700": "#344054", "800": "#1d2939", "900": "#101828", "950": "#0c111d" },
+        "error": { "50": "#fef3f2", "100": "#fee4e2", "500": "#f04438", "600": "#d92d20", "700": "#b42318" },
+        "success": { "50": "#ecfdf3", "500": "#12b76a", "700": "#027a48" },
+        "warning": { "50": "#fffaeb", "500": "#f79009" }
+      },
+      "font": "Outfit (Google Fonts)",
+      "utilities_defined": ["menu-item", "menu-item-active", "menu-item-inactive", "menu-dropdown-item", "menu-dropdown-item-active", "menu-dropdown-item-inactive", "no-scrollbar", "custom-scrollbar"]
+    },
+    "route_structure": {
+      "Provider_tree": "ThemeProvider > AppWrapper(HelmetProvider) > AuthProvider > Router > ScrollToTop > Routes",
+      "protected_routes": {
+      "layout": "AppLayout (SidebarProvider > Sidebar + AppHeader + Outlet)",
+      "pages": {
+        "/": "SACADDashboard",
+        "/facultades": "FacultadesPage",
+        "/sedes": "SedesPage",
+        "/carreras": "CarrerasPage",
+        "/planes": "PlanesPage",
+        "/materias": "MateriasPage",
+        "/equivalencias": "EquivalenciasPage",
+        "/profile": "ProfilePage"
+      }
+    },
+    "public_routes": {
+      "/signin": "SignIn",
+      "/signup": "SignUp",
+      "/auth/callback": "AuthCallback (receives JWT tokens from Google OAuth redirect, calls login())",
+      "/auth/pending": "AuthPending (shows approval pending modal)",
+      "*": "NotFound"
+    }
+    },
+    "auth_flow": {
+      "standard_login": "SignInForm → email+password → POST /auth/login/ → JWT tokens → login() stores in sessionStorage → navigate('/')",
+      "google_login": "Click 'Ingresar con Google' → window.location = /accounts/google/login/?process=login → allauth handles OAuth → redirects to /api/auth/google/complete/ → google_complete view redirects to FRONTEND_URL/auth/callback?access=X&refresh=Y → AuthCallback reads params → login() → navigate('/')",
+      "new_google_user": "FCEGoogleAccountAdapter creates user with is_active=False → ImmediateHttpResponse redirects to FRONTEND_URL/auth/pending → AuthPending shows modal 'Cuenta pendiente de aprobación'",
+      "pending_users_approval": "Admin hits GET /auth/pending-users/ (staff only) → list of inactive users → PATCH /auth/approve-user/<id>/ (staff only) sets is_active=True",
+      "logout": "UserDropdown sign out button → AuthContext.logout() → removes tokens from sessionStorage → setUser(null) → window.location.replace('/signin')",
+      "auto_logout": "On browser close, sessionStorage is cleared → no access_token on reload → user is unauthenticated → ProtectedRoute redirects to /signin"
+    },
+    "session_token_handling": {
+      "storage": "sessionStorage (access_token, refresh_token)",
+      "client_interceptor": "apiClient (axios) reads access_token from sessionStorage, sets Authorization Bearer header on all requests. On 401 response, attempts token refresh via /auth/token/refresh/. On refresh failure, clears tokens and redirects to /signin",
+      "AuthContext_init": "On mount, reads access_token from sessionStorage. If exists, calls /auth/me/ to populate user. Sets loading=false when done"
+    },
+    "pages": {
+      "SACADDashboard": {
+        "file": "SACADDashboard.tsx",
+        "data_source": "GET /dashboard/stats/ via useApiData hook",
+        "sections": ["4 StatCards (Facultades, Carreras, Planes Vigentes, Materias)", "Carreras por Facultad (horizontal bars)", "Materias por Año (horizontal bars)", "Últimos Planes Modificados (table)"]
+      },
+      "FacultadesPage": {
+        "file": "FacultadesPage.tsx",
+        "CRUD": true,
+        "fields": ["codigo", "nombre_corto", "nombre", "activa (Switch)"],
+        "list_columns": ["Código", "Nombre Corto", "Nombre Completo", "Sedes (count)", "Carreras (count)", "Estado (Activa/Inactiva badge)", "Acciones (Editar/Eliminar buttons)"],
+        "filters": ["search box", "status dropdown (Todas/Activas/Inactivas)"],
+        "delete_flow": "If sedes_count>0 or carreras_count>0 → blocked modal with reason (no delete allowed). Otherwise → confirmation modal → DELETE /facultades/:id → refetch",
+        "form_validation": "client-side required fields + server-side error mapping to individual fields (case-insensitive duplicate name/nombre_corto)",
+        "breadcrumb": "Dotted Divider (Home · Facultades)"
+      },
+      "SedesPage": {
+        "file": "SedesPage.tsx",
+        "CRUD": true,
+        "fields": ["codigo", "nombre", "facultad (select, required)", "activa (Switch)", "direccion", "localidad"],
+        "list_columns": ["Código", "Nombre", "Facultad", "Dirección", "Localidad", "Estado", "Acciones"],
+        "filters": ["facultad select (from /facultades/?activa=true)", "status dropdown", "search box"],
+        "delete_flow": "Confirmation modal → DELETE /sedes/:id → catches 409 ProtectedError → shows error message with server detail",
+        "form_validation": "client-side required fields for codigo, nombre, facultad",
+        "breadcrumb": "Dotted Divider (Home · Sedes)"
+      },
+      "CarrerasPage": {
+        "file": "CarrerasPage.tsx",
+        "CRUD": true,
+        "fields": ["facultad (select, triggers sedes load)", "sedes (checkboxes, filtered by selected facultad)", "codigo_ministerial", "nombre_corto", "nombre", "activa (Switch)"],
+        "list_columns": ["Código Ministerial", "Nombre Corto", "Nombre Completo", "Facultad", "Sedes (comma-separated names)", "Estado", "Acciones"],
+        "filters": ["status dropdown", "search box"],
+        "delete_flow": "Confirmation modal → DELETE /carreras/:id → catches 409 ProtectedError → shows error",
+        "sedes_loading": "openEdit calls loadSedes(facultadId); changing facultad in form calls loadSedes or clears options",
+        "useApiData_deps": "[qs] (search param string) so refetch happens on filter change",
+        "breadcrumb": "Dotted Divider (Home · Carreras)"
+      },
+      "PlanesPage": {
+        "file": "PlanesPage.tsx",
+        "list_view": "table with Carrera, Versión, Año, Horas, Materias count, Estado (Vigente badge). Click row → tab detail view via ?id=X search param",
+        "detail_view": "3 tabs: Info (plan fields), Materias (table from /materias/?plan_estudio=X), Árbol Curricular (cards grouped by año/cuatrimestre from /planes/X/arbol-curricular/)",
+        "filters": "carrera ID input",
+        "useApiData_deps": "[filterCarrera]",
+        "breadcrumb": "Dotted Divider (Home · Planes de Estudio)"
+      },
+      "MateriasPage": {
+        "file": "MateriasPage.tsx",
+        "list_view": "table with Código, Nombre, Año, Cuatrimestre, Horas Semanales, Horas Totales, Tipo (badge)",
+        "filters": "plan ID input, año input",
+        "useApiData_deps": "[qs]",
+        "breadcrumb": "Dotted Divider (Home · Materias)"
+      },
+      "EquivalenciasPage": {
+        "file": "EquivalenciasPage.tsx",
+        "layout": "2-column grid: left=consulta form, right=registered equivalencias list",
+        "consulta": "inputs for materia_origen_id + plan_destino_id → GET /equivalencias/consultar/ → shows results list",
+        "registered_list": "GET /equivalencias/ → shows cards with origen → destino, tipo, plan name",
+        "no_breadcrumb": "(uses old-style)"
+      },
+      "ProfilePage": {
+        "file": "ProfilePage.tsx",
+        "functionality": "photo upload via PATCH /auth/profile/ with FormData. Shows preview on file select. Hover overlay to change. Displays user initials avatar fallback (brand-500 bg), full name, email",
+        "photo_storage": "ImageField → /media/fotos_perfil/"
+      }
+    },
+    "auth_pages": {
+      "SignIn": "AuthPageLayout + SignInForm. Form has email/password + Google button. Google button goes to /accounts/google/login/?process=login",
+      "SignUp": "AuthPageLayout + SignUpForm. Template only (not functional for registration; all signup is via Google OAuth)",
+      "AuthCallback": "Reads access/refresh from URL search params → calls login() → navigate('/')",
+      "AuthPending": "Shows non-dismissable modal 'Cuenta pendiente de aprobación' explaining admin must enable account. Link to /signin",
+      "AuthPageLayout": "2-column layout: left (flex-1) = children, right (lg:w-1/2, bg-brand-950) = UNCUYO blanco logo + system description. ThemeTogglerTwo in bottom-right corner"
+    },
+    "layout": {
+      "AppLayout": "SidebarProvider wraps LayoutContent. LayoutContent: sidebar div + main content (ml-[290px] or ml-[90px] depending on isExpanded/isHovered). Outlet in padded container",
+      "AppSidebar": "Fixed left sidebar. Width 290px expanded, 90px collapsed. On hover when collapsed → 290px (isHovered state). Logos: uncuyo_color.png / uncuyo_blanco.PNG (expanded), uncuyo_color_logo.PNG / uncuyo_blanco_logo.PNG (collapsed). Navigations: SACAD section (Dashboard, Académica submenu with Facultades/Sedes/Carreras/Planes/Materias, Equivalencias) + Módulos section. Submenu animation via scrollHeight. Active detection via location.pathname. Mobile: full-screen overlay with Backdrop",
+      "AppHeader": "Sticky top bar. Left: hamburger toggle (sidebar toggle on desktop, mobile sidebar on mobile). Center: search input with Cmd+K shortcut. Right: ThemeToggleButton, NotificationDropdown, UserDropdown. Mobile: AppHeader shows logo, hamburger, and application menu toggle",
+      "UserDropdown": "Avatar circle with initials (generated from first/last name, fallback email first char, colored by hash). If user has foto, shows image. Dropdown: name+email, links (Mi Perfil, Account settings, Support), Sign out button. Sign out calls logout() which clears sessionStorage and redirects to /signin",
+      "SidebarWidget": "Bottom widget showing SACAD name and full description text"
+    },
+    "common_components": {
+      "PageMeta": "Uses react-helmet-async to set <title> and <meta description> per page",
+      "PageBreadcrumb": "Dual mode: pageTitle (legacy with Home icon arrow breadcrumb) / items (Dotted Divider: Home · Label1 · Label2). items mode uses · separator, last item is gray-800 (current page), preceding items are links",
+      "Modal": "Overlay modal with backdrop blur, escape key closes, scroll lock on body. Optional close button (default true). Custom className for sizing. Rounded-3xl, dark mode support",
+      "Button": "Supports sm/md sizes, primary/outline variants, startIcon/endIcon, disabled state with opacity",
+      "InputField": "Text/number/email/password/date/time inputs. Supports error/success/disabled states, hint text",
+      "Label": "Form label with tailwind-merge + clsx for styling",
+      "Switch": "Toggle switch with check/cross icons, disabled state",
+      "Checkbox": "Custom checkbox with checkmark SVG overlay",
+      "Dropdown": "Absolute positioned dropdown with outside-click-to-close",
+      "DropdownItem": "Link or button menu item with configurable classNames",
+      "GridShape": "Decorative grid SVG images for auth layout",
+      "ThemeToggleButton": "Header button to toggle dark/light mode",
+      "ThemeTogglerTwo": "Floating circular button for auth pages theme toggle",
+      "ScrollToTop": "Scrolls to top on route change"
+    },
+    "icons": {
+      "file": "src/icons/index.ts",
+      "loading": "vite-plugin-svgr with named export ReactComponent",
+      "available": ["PlusIcon", "CloseIcon", "BoxIcon", "CheckCircleIcon", "AlertIcon", "InfoIcon", "ErrorIcon", "BoltIcon", "ArrowUpIcon", "ArrowDownIcon", "FolderIcon", "VideoIcon", "AudioIcon", "GridIcon", "FileIcon", "DownloadIcon", "ArrowRightIcon", "GroupIcon", "BoxIconLine", "ShootingStarIcon", "DollarLineIcon", "TrashBinIcon", "AngleUpIcon", "AngleDownIcon", "PencilIcon", "CheckLineIcon", "CloseLineIcon", "ChevronDownIcon", "PaperPlaneIcon", "LockIcon", "EnvelopeIcon", "UserIcon", "CalenderIcon", "EyeIcon", "EyeCloseIcon", "TimeIcon", "CopyIcon", "ChevronLeftIcon", "UserCircleIcon", "TaskIcon", "ListIcon", "TableIcon", "PageIcon", "PieChartIcon", "BoxCubeIcon", "PlugInIcon", "DocsIcon", "MailIcon", "HorizontaLDots", "ChatIcon", "AlertHexaIcon", "ErrorHexaIcon"]
+    },
+    "hooks": {
+      "useApiData": "Generic data fetching hook. Takes URL + deps array. Returns {data, loading, error, refetch}. Calls apiClient.get on mount and when deps change",
+      "useGoBack": "Navigates back if history exists, otherwise to /",
+      "useModal": "Simple boolean toggle hook. Returns {isOpen, openModal, closeModal, toggleModal}"
+    },
+    "api_client": {
+      "file": "src/api/client.ts",
+      "baseURL": "import.meta.env.VITE_API_URL || '/api'",
+      "request_interceptor": "Sets Authorization Bearer from sessionStorage.access_token",
+      "response_interceptor": "On 401, attempts token refresh via POST /auth/token/refresh/ with sessionStorage.refresh_token. On success, retries original request. On failure, clears sessionStorage and redirects to /signin"
+    },
+    "contexts": {
+      "AuthContext": "Manages user state, login/logout functions, loading. Tokens stored in sessionStorage. On mount checks for existing access_token and validates via /auth/me/",
+      "ThemeContext": "light/dark theme. Persisted to localStorage. Adds/removes 'dark' class on document.documentElement",
+      "SidebarContext": "isExpanded, isMobileOpen, isHovered, activeItem, openSubmenu. Collapses sidebar on mobile automatically. Hover expands collapsed sidebar"
+    }
+  },
+  "nginx": {
+    "standalone_frontend_nginx": "frontend/nginx.conf - listens port 80, serves static files, proxies /api/, /admin/, /accounts/, /static/, /media/ to http://backend:8000",
+    "dedicated_reverse_proxy": {
+      "config": "nginx/nginx.conf + nginx/frontend.conf",
+      "upstream_backend": "backend:8000",
+      "upstream_frontend": "frontend:80",
+      "server_name": "sacad.localhost",
+      "proxied_paths": {
+        "/": "→ frontend",
+        "/api/": "→ backend",
+        "/admin/": "→ backend",
+        "/accounts/": "→ backend",
+        "/static/": "→ backend",
+        "/media/": "→ backend"
+      }
+    }
+  },
+  "environment_variables": {
+    "SECRET_KEY": "Django secret key",
+    "DEBUG": "True/False",
+    "ALLOWED_HOSTS": "comma-separated hosts",
+    "CORS_ALLOWED_ORIGINS": "comma-separated origins",
+    "DB_NAME": "sacad",
+    "DB_USER": "sacad",
+    "DB_PASSWORD": "database password",
+    "DB_HOST": "db (Docker service name)",
+    "DB_PORT": "5432",
+    "GOOGLE_CLIENT_ID": "Google OAuth client ID",
+    "GOOGLE_CLIENT_SECRET": "Google OAuth client secret",
+    "SACAD_DOMAIN_RESTRICTION": "@fce.uncu.edu.ar (domain filter for Google auth)",
+    "FRONTEND_URL": "http://localhost or http://localhost:80"
+  },
+  "docker_compose_files": {
+    "docker-compose.yml": "Development. 3 services: db, backend, frontend. Frontend on port 80. Backend on port 8000. Variables from .env with defaults",
+    "docker-compose.prod.yml": "Production. No defaults required (all vars must be in .env). Restart: unless-stopped. Backups volume mounted. No debug toolbar"
+  },
+  "public_assets": {
+    "logos": {
+      "uncuyo_color.png": "Logo expanded light mode",
+      "uncuyo_blanco.PNG": "Logo expanded dark mode",
+      "uncuyo_color_logo.PNG": "Logo collapsed light mode + favicon",
+      "uncuyo_blanco_logo.PNG": "Logo collapsed dark mode"
+    },
+    "favicon": "favicon.png (uses uncuyo_color_logo.PNG)",
+    "page_title": "SACAD"
+  },
+  "make_commands": {
+    "build": "docker compose build",
+    "up": "docker compose up -d",
+    "prod": "docker compose -f docker-compose.prod.yml up -d",
+    "down": "docker compose down",
+    "dev-backend": "cd backend && python manage.py runserver 0.0.0.0:8000",
+    "dev-frontend": "cd frontend && npm run dev",
+    "logs": "docker compose logs -f",
+    "makemigrations": "docker compose exec backend python manage.py makemigrations",
+    "migrate": "docker compose exec backend python manage.py migrate",
+    "shell": "docker compose exec backend python manage.py shell_plus",
+    "backup": "pg_dump via docker compose exec db",
+    "restore": "pg_restore via docker compose exec db"
+  },
+  "scripts": {
+    "backend/scripts/backup-daily.sh": "Daily database backup script",
+    "backend/scripts/migrate-safe.sh": "Safe migration script"
+  },
+  "key_decisions": [
+    "Duplicados de facultad validados vía serializer (case-insensitive, exclude self on update), no DB unique constraint, to avoid issues with existing data",
+    "Profile model (OneToOneField) instead of extending User, avoiding custom user model migration complexity",
+    "Logos in /logos/ inside public/, served statically by nginx without backend involvement",
+    "codigo in CarreraSerializer with default='' so UniqueTogetherValidator doesn't fail on create without that field (falls back to codigo_ministerial or 'sin-codigo')",
+    "New Google users created with is_active=False; login interrupted via ImmediateHttpResponse in pre_social_login adapter",
+    "Sedes with unique_together=['facultad','codigo'] because codigo is meaningful within each facultad, not globally",
+    "Add button icon: SVG inline (white circle + brand-500 plus path) in startIcon prop, size w-5 h-5 (20px), button font-semibold",
+    "Tokens stored in sessionStorage (not localStorage) so session ends on browser close",
+    "Cascade delete protection: Facultad checks sedes then carreras; Sede checks carreras; Carrera checks planes. All return 409 with detail message",
+    "Frontend validates facultad delete upfront (checks sedes_count/carreras_count from list before showing confirm modal) for better UX"
+  ]
+}

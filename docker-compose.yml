@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - sacad_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sacad}
+      POSTGRES_USER: ${DB_USER:-sacad}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sacad}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sacad}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    environment:
+      DJANGO_SETTINGS_MODULE: sacad.settings.development
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      DEBUG: "True"
+      DB_NAME: ${DB_NAME:-sacad}
+      DB_USER: ${DB_USER:-sacad}
+      DB_PASSWORD: ${DB_PASSWORD:-sacad}
+      DB_HOST: db
+      DB_PORT: "5432"
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:80}
+      SACAD_DOMAIN_RESTRICTION: ${SACAD_DOMAIN_RESTRICTION:-@fce.uncu.edu.ar}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  sacad_postgres_data:
+  static_volume:
+  media_volume:

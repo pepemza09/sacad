@@ -1,0 +1,64 @@
+# Sensitive / secrets
+.env
+backend/.env
+frontend/.env
+docker-compose.override.yml
+
+# Session / AI context (not part of the project)
+.opencode.md
+session-*.md
+
+# Django
+*.pyc
+__pycache__/
+*.pyo
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.installed.cfg
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Static files collected by Django
+backend/staticfiles/
+backend/media/
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker volumes (local)
+data/
+
+# Template not part of the project
+free-react-tailwind-admin-dashboard-main/
+
+# OS
+Thumbs.db
