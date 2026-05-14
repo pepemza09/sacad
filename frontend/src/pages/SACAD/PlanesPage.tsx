@@ -10,6 +10,7 @@ import Switch from "../../components/form/switch/Switch";
 import { PencilIcon, TrashBinIcon } from "../../icons";
 import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
+import { useAuth } from "../../context/auth/AuthContext";
 
 interface CarreraOption {
   id: number;
@@ -67,6 +68,8 @@ const emptyForm: PlanForm = {
 };
 
 export default function PlanesPage() {
+  const { user } = useAuth();
+  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico");
   const [filter, setFilter] = useState("");
   const params = new URLSearchParams();
   if (filter) params.set("search", filter);
@@ -249,7 +252,7 @@ export default function PlanesPage() {
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
               />
-              <Button size="sm" startIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="white"/><path d="M12 8v8M8 12h8" stroke="#465fff" strokeWidth={2} strokeLinecap="round"/></svg>} className="font-semibold" onClick={openCreate}>Agregar Plan</Button>
+              {canWrite && <Button size="sm" startIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="white"/><path d="M12 8v8M8 12h8" stroke="#465fff" strokeWidth={2} strokeLinecap="round"/></svg>} className="font-semibold" onClick={openCreate}>Agregar Plan</Button>}
             </div>
           </div>
         </div>
@@ -312,32 +315,34 @@ export default function PlanesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <div className="relative group">
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 hidden group-hover:flex flex-col items-center z-50">
-                            <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-800"></div>
-                            <div className="bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">Editar</div>
+                      {canWrite && (
+                        <div className="flex items-center gap-1">
+                          <div className="relative group">
+                            <button
+                              onClick={() => openEdit(p)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                            </button>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 hidden group-hover:flex flex-col items-center z-50">
+                              <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-800"></div>
+                              <div className="bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">Editar</div>
+                            </div>
+                          </div>
+                          <div className="relative group">
+                            <button
+                              onClick={() => openDelete(p.id)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                            >
+                              <TrashBinIcon className="w-4 h-4" />
+                            </button>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 hidden group-hover:flex flex-col items-center z-50">
+                              <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-800"></div>
+                              <div className="bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">Eliminar</div>
+                            </div>
                           </div>
                         </div>
-                        <div className="relative group">
-                          <button
-                            onClick={() => openDelete(p.id)}
-                            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                          >
-                            <TrashBinIcon className="w-4 h-4" />
-                          </button>
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 hidden group-hover:flex flex-col items-center z-50">
-                            <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-800"></div>
-                            <div className="bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">Eliminar</div>
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </td>
                   </tr>
                 ))

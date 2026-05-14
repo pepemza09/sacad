@@ -116,7 +116,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "SACAD API",
-    "DESCRIPTION": "Sistema de Administración de Carreras Académicas y Diseños",
+    "DESCRIPTION": "Sistema de Administración de Carreras, Actividades y Docentes",
     "VERSION": "1.0.0",
 }
 

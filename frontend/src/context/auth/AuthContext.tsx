@@ -8,7 +8,9 @@ export interface User {
   first_name: string;
   last_name: string;
   is_staff: boolean;
+  is_superuser: boolean;
   groups: number[];
+  group_names: string[];
   foto?: string | null;
   zoom_level?: number;
 }

@@ -9,6 +9,7 @@ from django.contrib.auth.models import Group
 from django.http import HttpResponseRedirect
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.contrib.auth.models import Group
 from .models import Profile, AllowedDomain
 from .serializers import UserSerializer, ProfileSerializer, EmailTokenObtainSerializer, AllowedDomainSerializer
 
@@ -153,6 +154,10 @@ def approve_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
     profile, _ = Profile.objects.get_or_create(user=user)
     user.is_active = True
+    if not user.groups.exists():
+        role = Group.objects.filter(name="Director Carrera").first()
+        if role:
+            user.groups.add(role)
     user.save()
     profile.approval_status = Profile.ApprovalStatus.APPROVED
     profile.approved_at = timezone.now()

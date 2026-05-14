@@ -1,6 +1,6 @@
-# SACAD - Sistema de Administración de Carreras Académicas y Docentes
+# SACAD - Sistema de Administración de Carreras, Actividades y Docentes
 
-Sistema web para la gestión de carreras, facultades, sedes, planes de estudio, materias y equivalencias. Desarrollado con Django REST Framework + React + PostgreSQL.
+Sistema de Administración de Carreras, Actividades y Docentes. Desarrollado con Django REST Framework + React + PostgreSQL.
 
 ## Stack
 

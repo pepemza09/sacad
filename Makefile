@@ -1,7 +1,7 @@
 .PHONY: help build up down dev-backend dev-frontend logs migrate shell backup restore
 
 help:
-	@echo "SACAD - Sistema de Administración de Carreras Académicas y Diseños"
+	@echo "SACAD - Sistema de Administración de Carreras, Actividades y Docentes"
 	@echo ""
 	@echo "Comandos disponibles:"
 	@echo "  make build        - Construye todas las imágenes Docker"
