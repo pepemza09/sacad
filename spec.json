@@ -1,7 +1,7 @@
 {
   "project": {
     "name": "SACAD",
-    "description": "Sistema de Administración de Carreras Académicas y Docentes",
+    "description": "Sistema de Administración de Carreras, Actividades y Docentes",
     "full_description": "Sistema de Administración de Carreras, Actividades y Docentes",
     "domain": "sacad.localhost",
     "version": "1.0.0"
@@ -276,12 +276,13 @@
           "Profile": {
             "fields": {
               "user": "OneToOneField(User, CASCADE, related_name='profile')",
-              "foto": "ImageField(upload_to='fotos_perfil/', blank=True, null=True)"
+              "foto": "ImageField(upload_to='fotos_perfil/', blank=True, null=True)",
+              "zoom_level": "FloatField(default=100.0, validators=[MinValueValidator(50), MaxValueValidator(200)])"
             }
           }
         },
         "serializers": {
-          "UserSerializer": "id, username, email, first_name, last_name, is_staff, groups, foto (from profile)",
+          "UserSerializer": "id, username, email, first_name, last_name, is_staff, groups, group_names (SerializerMethodField, string[]), is_superuser, foto (from profile), zoom_level (from profile)",
           "TokenResponseSerializer": "access, refresh, user (nested UserSerializer)",
           "ProfileSerializer": "foto",
           "EmailTokenObtainSerializer": "validates email+password, checks is_active, returns user"
@@ -292,14 +293,15 @@
           "google_login": "POST /auth/google/ - placeholder, actual flow is via allauth",
           "logout": "POST /auth/logout/ - blacklists refresh token",
           "profile_detail": "GET/PUT/PATCH /auth/profile/ - manages Profile.foto",
+          "update_zoom": "PATCH /auth/update-zoom/ - updates Profile.zoom_level (validates 50-200)",
           "google_complete": "GET /auth/google/complete/ - allauth callback handler, redirects to frontend with JWT tokens as URL params",
           "pending_users": "GET /auth/pending-users/ - staff only, lists is_active=False users",
-          "approve_user": "PATCH /auth/approve-user/<id>/ - staff only, sets is_active=True"
+          "approve_user": "PATCH /auth/approve-user/<id>/ - staff only, sets is_active=True. Auto-assigns group 'Director Carrera' if user has no groups"
         },
         "urls": {
           "paths": [
             "me/", "login/", "google/", "google/complete/", "logout/",
-            "profile/", "token/", "token/refresh/", "token/verify/",
+            "profile/", "update-zoom/", "token/", "token/refresh/", "token/verify/",
             "pending-users/", "approve-user/<int:user_id>/"
           ]
         },
@@ -438,7 +440,7 @@
       "standard_login": "SignInForm → email+password → POST /auth/login/ → JWT tokens → login() stores in sessionStorage → navigate('/')",
       "google_login": "Click 'Ingresar con Google' → window.location = /accounts/google/login/?process=login → allauth handles OAuth → redirects to /api/auth/google/complete/ → google_complete view redirects to FRONTEND_URL/auth/callback?access=X&refresh=Y → AuthCallback reads params → login() → navigate('/')",
       "new_google_user": "FCEGoogleAccountAdapter creates user with is_active=False → ImmediateHttpResponse redirects to FRONTEND_URL/auth/pending → AuthPending shows modal 'Cuenta pendiente de aprobación'",
-      "pending_users_approval": "Admin hits GET /auth/pending-users/ (staff only) → list of inactive users → PATCH /auth/approve-user/<id>/ (staff only) sets is_active=True",
+      "pending_users_approval": "Admin hits GET /auth/pending-users/ (staff only) → list of inactive users → PATCH /auth/approve-user/<id>/ (staff only) sets is_active=True, auto-assigns 'Director Carrera' group if user has no groups",
       "logout": "UserDropdown sign out button → AuthContext.logout() → removes tokens from sessionStorage → setUser(null) → window.location.replace('/signin')",
       "auto_logout": "On browser close, sessionStorage is cleared → no access_token on reload → user is unauthenticated → ProtectedRoute redirects to /signin"
     },
@@ -461,6 +463,7 @@
         "filters": ["search box", "status dropdown (Todas/Activas/Inactivas)"],
         "delete_flow": "If sedes_count>0 or carreras_count>0 → blocked modal with reason (no delete allowed). Otherwise → confirmation modal → DELETE /facultades/:id → refetch",
         "form_validation": "client-side required fields + server-side error mapping to individual fields (case-insensitive duplicate name/nombre_corto)",
+        "conditional_buttons": "Agregar/Editar/Eliminar hidden unless is_superuser or group 'Admin Universidad'",
         "breadcrumb": "Dotted Divider (Home · Facultades)"
       },
       "SedesPage": {
@@ -471,6 +474,7 @@
         "filters": ["facultad select (from /facultades/?activa=true)", "status dropdown", "search box"],
         "delete_flow": "Confirmation modal → DELETE /sedes/:id → catches 409 ProtectedError → shows error message with server detail",
         "form_validation": "client-side required fields for codigo, nombre, facultad",
+        "conditional_buttons": "Agregar/Editar/Eliminar hidden unless is_superuser or group 'Admin Universidad' or 'Secretario Académico'",
         "breadcrumb": "Dotted Divider (Home · Sedes)"
       },
       "CarrerasPage": {
@@ -482,6 +486,7 @@
         "delete_flow": "Confirmation modal → DELETE /carreras/:id → catches 409 ProtectedError → shows error",
         "sedes_loading": "openEdit calls loadSedes(facultadId); changing facultad in form calls loadSedes or clears options",
         "useApiData_deps": "[qs] (search param string) so refetch happens on filter change",
+        "conditional_buttons": "Agregar/Editar/Eliminar hidden unless is_superuser or group 'Admin Universidad' or 'Secretario Académico'",
         "breadcrumb": "Dotted Divider (Home · Carreras)"
       },
       "PlanesPage": {
@@ -522,7 +527,7 @@
     "layout": {
       "AppLayout": "SidebarProvider wraps LayoutContent. LayoutContent: sidebar div + main content (ml-[290px] or ml-[90px] depending on isExpanded/isHovered). Outlet in padded container",
       "AppSidebar": "Fixed left sidebar. Width 290px expanded, 90px collapsed. On hover when collapsed → 290px (isHovered state). Logos: uncuyo_color.png / uncuyo_blanco.PNG (expanded), uncuyo_color_logo.PNG / uncuyo_blanco_logo.PNG (collapsed). Navigations: SACAD section (Dashboard, Académica submenu with Facultades/Sedes/Carreras/Planes/Materias, Equivalencias) + Módulos section. Submenu animation via scrollHeight. Active detection via location.pathname. Mobile: full-screen overlay with Backdrop",
-      "AppHeader": "Sticky top bar. Left: hamburger toggle (sidebar toggle on desktop, mobile sidebar on mobile). Center: search input with Cmd+K shortcut. Right: ThemeToggleButton, NotificationDropdown, UserDropdown. Mobile: AppHeader shows logo, hamburger, and application menu toggle",
+      "AppHeader": "Sticky top bar. Left: hamburger toggle (sidebar toggle on desktop, mobile sidebar on mobile). Center: search input with Cmd+K shortcut. Right: ZoomControl, ThemeToggleButton, NotificationDropdown, UserDropdown. Mobile: AppHeader shows logo, hamburger, and application menu toggle",
       "UserDropdown": "Avatar circle with initials (generated from first/last name, fallback email first char, colored by hash). If user has foto, shows image. Dropdown: name+email, links (Mi Perfil, Account settings, Support), Sign out button. Sign out calls logout() which clears sessionStorage and redirects to /signin",
       "SidebarWidget": "Bottom widget showing SACAD name and full description text"
     },
@@ -539,6 +544,7 @@
       "DropdownItem": "Link or button menu item with configurable classNames",
       "GridShape": "Decorative grid SVG images for auth layout",
       "ThemeToggleButton": "Header button to toggle dark/light mode",
+      "ZoomControl": "Dropdown in AppHeader with zoom levels 75/90/100/110/125/150%. PATCH /auth/update-zoom/ on change. Applies via document.documentElement.style.fontSize. Restored from /auth/me/ on login",
       "ThemeTogglerTwo": "Floating circular button for auth pages theme toggle",
       "ScrollToTop": "Scrolls to top on route change"
     },
@@ -559,7 +565,7 @@
       "response_interceptor": "On 401, attempts token refresh via POST /auth/token/refresh/ with sessionStorage.refresh_token. On success, retries original request. On failure, clears sessionStorage and redirects to /signin"
     },
     "contexts": {
-      "AuthContext": "Manages user state, login/logout functions, loading. Tokens stored in sessionStorage. On mount checks for existing access_token and validates via /auth/me/",
+      "AuthContext": "Manages user state (User includes group_names: string[], is_superuser: boolean, zoom_level: number), login/logout functions, loading. Applies zoom_level via document.documentElement.style.fontSize on mount and login. Tokens stored in sessionStorage. On mount checks for existing access_token and validates via /auth/me/",
       "ThemeContext": "light/dark theme. Persisted to localStorage. Adds/removes 'dark' class on document.documentElement",
       "SidebarContext": "isExpanded, isMobileOpen, isHovered, activeItem, openSubmenu. Collapses sidebar on mobile automatically. Hover expands collapsed sidebar"
     }
@@ -638,6 +644,10 @@
     "Add button icon: SVG inline (white circle + brand-500 plus path) in startIcon prop, size w-5 h-5 (20px), button font-semibold",
     "Tokens stored in sessionStorage (not localStorage) so session ends on browser close",
     "Cascade delete protection: Facultad checks sedes then carreras; Sede checks carreras; Carrera checks planes. All return 409 with detail message",
-    "Frontend validates facultad delete upfront (checks sedes_count/carreras_count from list before showing confirm modal) for better UX"
+    "Frontend validates facultad delete upfront (checks sedes_count/carreras_count from list before showing confirm modal) for better UX",
+    "Zoom applied via fontSize on <html> (scales rem of Tailwind) instead of CSS transform/zoom for layout compatibility",
+    "group_names (string[]) exposed in UserSerializer instead of numeric group IDs so frontend can do semantic comparisons without ID-to-name mapping",
+    "Auto-assign Director Carrera on approve_user ensures newly approved Google users always have at least basic write access (materias)",
+    "Frontend buttons hidden (not disabled) for users without permission to avoid clutter and reduce confusion"
   ]
 }

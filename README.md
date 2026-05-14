@@ -50,9 +50,10 @@ La aplicación estará disponible en http://localhost.
 | `DB_NAME`             | Nombre de la base de datos        | `sacad`                 |
 | `DB_USER`             | Usuario de la base de datos       | `sacad`                 |
 | `DB_PASSWORD`         | Contraseña de la base de datos    | `sacad`                 |
-| `GOOGLE_CLIENT_ID`    | Client ID de Google OAuth         | _(requerido)_           |
-| `GOOGLE_CLIENT_SECRET`| Client Secret de Google OAuth     | _(requerido)_           |
-| `FRONTEND_URL`        | URL del frontend                  | `http://localhost`      |
+| `GOOGLE_CLIENT_ID`    | Client ID de Google OAuth          | _(requerido)_           |
+| `GOOGLE_CLIENT_SECRET`| Client Secret de Google OAuth      | _(requerido)_           |
+| `FRONTEND_URL`        | URL del frontend                   | `http://localhost`      |
+| `SACAD_DOMAIN_RESTRICTION` | Dominio requerido para registro Google | `@fce.uncu.edu.ar` |
 
 > **Google OAuth:** Configurar en Google Cloud Console la URI de redirección `http://localhost/accounts/google/login/callback/` (o la URL correspondiente en producción).
 
@@ -117,11 +118,24 @@ sacad/
 
 ## Roles
 
-| Rol                    | Permisos                                             |
-| ---------------------- | ---------------------------------------------------- |
-| Admin Universidad      | CRUD completo de facultades, sedes, carreras, planes |
-| Secretario Académico   | Gestión de equivalencias y materias                  |
-| Director Carrera       | Consulta y gestión limitada                          |
+| Rol                    | Permisos en backend                                 | Botones visibles en frontend                     |
+| ---------------------- | ---------------------------------------------------- | ------------------------------------------------ |
+| Admin Universidad      | CRUD de facultades, sedes, carreras, planes          | Facultades, Sedes, Carreras, Planes (Agregar/Editar/Eliminar) |
+| Secretario Académico   | CRUD de sedes, carreras, planes, equivalencias       | Sedes, Carreras, Planes (Agregar/Editar/Eliminar) |
+| Director Carrera       | CRUD de materias y correlatividades                  | Solo páginas de consulta                         |
+| Docente / pendiente    | Solo lectura                                         | Ningún botón de escritura                        |
+
+## Zoom de interfaz
+
+Cada usuario puede ajustar el nivel de zoom (75%–200%) desde el control en el header. El nivel se persiste en el backend (`Profile.zoom_level`) y se aplica vía `fontSize` sobre `<html>`, escalando las unidades `rem` de Tailwind. Al iniciar sesión se restaura automáticamente.
+
+## Permisos en frontend
+
+Los botones de crear, editar y eliminar se ocultan condicionalmente según `user.group_names` e `is_superuser`. El serializer expone `group_names` (array de strings) para que el frontend pueda evaluar permisos sin depender de IDs numéricos.
+
+## Auto-asignación de rol
+
+Al aprobar un usuario desde "Autorización de usuarios", si este no tiene ningún grupo asignado se le asigna automáticamente el rol **Director Carrera**, garantizando que tenga al menos permisos básicos de escritura (materias).
 
 ## Protecciones de datos
 
