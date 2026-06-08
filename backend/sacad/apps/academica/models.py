@@ -5,6 +5,17 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+def derivar_cuatrimestre(periodo):
+    if not periodo:
+        return "1"
+    p = periodo.strip()
+    if "2C" in p or "2c" in p:
+        return "2"
+    if "1C" in p or "1c" in p:
+        return "1"
+    return "1"
+
+
 class Facultad(models.Model):
     codigo = models.CharField(max_length=20, unique=True)
     nombre_corto = models.CharField(max_length=100)
@@ -102,6 +113,10 @@ class PlanEstudio(models.Model):
         verbose_name_plural = "Planes de Estudio"
         ordering = ["carrera", "-año_inicio_implementacion"]
         unique_together = ["carrera", "codigo"]
+        indexes = [
+            models.Index(fields=["carrera", "vigente"]),
+            models.Index(fields=["año_inicio_implementacion"]),
+        ]
 
     def __str__(self):
         return f"{self.carrera.nombre} - {self.codigo}"
@@ -126,16 +141,33 @@ class Materia(models.Model):
     nombre = models.CharField(max_length=255)
     año = models.PositiveSmallIntegerField()
     cuatrimestre = models.CharField(max_length=10, choices=CUATRIMESTRE_CHOICES)
+    creditos = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Créditos de la materia"
+    )
+    periodo = models.CharField(
+        max_length=20, blank=True, default="",
+        help_text="Período original (ej: B1/1C, 1C, B2/1C)"
+    )
     carga_horaria_semanal = models.PositiveIntegerField()
     carga_horaria_total = models.PositiveIntegerField()
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     contenidos_minimos = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.periodo and not self.cuatrimestre:
+            self.cuatrimestre = derivar_cuatrimestre(self.periodo)
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Materia"
         verbose_name_plural = "Materias"
         ordering = ["plan_estudio", "año", "cuatrimestre", "nombre"]
         unique_together = ["plan_estudio", "codigo"]
+        indexes = [
+            models.Index(fields=["plan_estudio", "año"]),
+            models.Index(fields=["plan_estudio", "codigo"]),
+            models.Index(fields=["tipo"]),
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
@@ -144,7 +176,9 @@ class Materia(models.Model):
 class Correlatividad(models.Model):
     TIPO_CHOICES = [
         ("cursar", "Para cursar"),
+        ("cursado", "Cursado"),
         ("aprobar", "Para aprobar"),
+        ("aprobacion", "Aprobación"),
         ("regular", "Regular"),
     ]
 

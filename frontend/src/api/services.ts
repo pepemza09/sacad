@@ -3,17 +3,27 @@ import apiClient from "./client";
 export const academicaApi = {
   facultades: (params?: Record<string, unknown>) =>
     apiClient.get("/facultades/", { params }),
+  carreraDetalle: (id: number) => apiClient.get(`/carreras/${id}/`),
   carreras: (params?: Record<string, unknown>) =>
     apiClient.get("/carreras/", { params }),
+  planDetalle: (id: number) => apiClient.get(`/planes/${id}/`),
+  planArbol: (id: number) => apiClient.get(`/planes/${id}/arbol_curricular/`),
   planes: (params?: Record<string, unknown>) =>
     apiClient.get("/planes/", { params }),
-  planDetalle: (id: number) => apiClient.get(`/planes/${id}/`),
-  planArbol: (id: number) => apiClient.get(`/planes/${id}/arbol-curricular/`),
   materias: (params?: Record<string, unknown>) =>
     apiClient.get("/materias/", { params }),
   materiaDetalle: (id: number) => apiClient.get(`/materias/${id}/`),
   materiaCorrelativas: (id: number) =>
     apiClient.get(`/materias/${id}/correlativas/`),
+  createMateria: (data: Record<string, unknown>) =>
+    apiClient.post("/materias/", data),
+  updateMateria: (id: number, data: Record<string, unknown>) =>
+    apiClient.put(`/materias/${id}/`, data),
+  deleteMateria: (id: number) => apiClient.delete(`/materias/${id}/`),
+  createCorrelatividad: (data: Record<string, unknown>) =>
+    apiClient.post("/correlatividades/", data),
+  deleteCorrelatividad: (id: number) =>
+    apiClient.delete(`/correlatividades/${id}/`),
   dashboard: (params?: Record<string, unknown>) =>
     apiClient.get("/dashboard/stats/", { params }),
 };

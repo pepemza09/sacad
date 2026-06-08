@@ -51,7 +51,11 @@ class MateriaFilter(django_filters.FilterSet):
         model = Materia
         fields = {
             "plan_estudio": ["exact"],
+            "codigo": ["exact", "icontains"],
+            "nombre": ["icontains"],
             "año": ["exact"],
             "cuatrimestre": ["exact"],
             "tipo": ["exact"],
+            "creditos": ["exact", "gte", "lte"],
+            "periodo": ["exact", "icontains"],
         }
