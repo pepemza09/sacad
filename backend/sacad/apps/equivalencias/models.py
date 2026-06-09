@@ -45,11 +45,14 @@ class Equivalencia(models.Model):
             origenes = self.materias_origen.all()
             destinos = self.materias_destino.all()
             if origenes and destinos:
-                carrera_origen = origenes.first().plan_estudio.carrera
-                carrera_destino = destinos.first().plan_estudio.carrera
-                if carrera_origen != carrera_destino:
+                planes = set()
+                for m in origenes:
+                    planes.add(m.plan_estudio_id)
+                for m in destinos:
+                    planes.add(m.plan_estudio_id)
+                if len(planes) == 1:
                     raise ValidationError(
-                        "Las materias de origen y destino deben pertenecer a la misma carrera."
+                        "No pueden existir equivalencias entre materias del mismo plan de estudio."
                     )
 
     def save(self, *args, **kwargs):

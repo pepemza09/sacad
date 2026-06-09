@@ -36,9 +36,9 @@ export const equivalenciasApi = {
   update: (id: number, data: Record<string, unknown>) =>
     apiClient.put(`/equivalencias/${id}/`, data),
   delete: (id: number) => apiClient.delete(`/equivalencias/${id}/`),
-  consultar: (materiaOrigen: number, planDestino: number) =>
+  consultar: (materiasOrigen: number[], planDestino: number) =>
     apiClient.get("/equivalencias/consultar/", {
-      params: { materia_origen: materiaOrigen, plan_destino: planDestino },
+      params: { materias_origen: materiasOrigen.join(","), plan_destino: planDestino },
     }),
 };
 

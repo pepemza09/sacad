@@ -27,6 +27,8 @@ class EquivalenciaSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
+        from .engine import EquivalenciasEngine
+
         request = self.context.get("request")
         if request and request.method in ("POST", "PUT", "PATCH"):
             materias_origen = request.data.get("materias_origen", [])
@@ -35,6 +37,11 @@ class EquivalenciaSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Debe especificar materias de origen y destino"
                 )
+            valido, error = EquivalenciasEngine.validar_mismo_plan(
+                materias_origen, materias_destino
+            )
+            if not valido:
+                raise serializers.ValidationError(error)
         return data
 
 
