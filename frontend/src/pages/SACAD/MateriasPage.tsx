@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import { useApiData } from "../../hooks/useApiData";
 import { useModal } from "../../hooks/useModal";
@@ -6,10 +6,42 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
-import { PencilIcon, TrashBinIcon, PlusIcon } from "../../icons";
+import { PencilIcon, TrashBinIcon } from "../../icons";
 import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
+
+const colorPalette = [
+  { badge: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-500", row: "bg-blue-50/40 dark:bg-blue-500/[0.04]" },
+  { badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-500", row: "bg-emerald-50/40 dark:bg-emerald-500/[0.04]" },
+  { badge: "bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-500", row: "bg-purple-50/40 dark:bg-purple-500/[0.04]" },
+  { badge: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-500", row: "bg-orange-50/40 dark:bg-orange-500/[0.04]" },
+  { badge: "bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-500", row: "bg-pink-50/40 dark:bg-pink-500/[0.04]" },
+  { badge: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-500", row: "bg-teal-50/40 dark:bg-teal-500/[0.04]" },
+  { badge: "bg-cyan-50 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-500", row: "bg-cyan-50/40 dark:bg-cyan-500/[0.04]" },
+  { badge: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-500", row: "bg-rose-50/40 dark:bg-rose-500/[0.04]" },
+  { badge: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-500", row: "bg-amber-50/40 dark:bg-amber-500/[0.04]" },
+  { badge: "bg-lime-50 text-lime-700 dark:bg-lime-500/15 dark:text-lime-500", row: "bg-lime-50/40 dark:bg-lime-500/[0.04]" },
+  { badge: "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-500", row: "bg-indigo-50/40 dark:bg-indigo-500/[0.04]" },
+  { badge: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-500", row: "bg-sky-50/40 dark:bg-sky-500/[0.04]" },
+];
+
+function hashName(s: string): number {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash) + s.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getBadgeClass(tipo: string): string {
+  return colorPalette[hashName(tipo) % colorPalette.length].badge;
+}
+
+function getRowClass(tipo: string): string {
+  return colorPalette[hashName(tipo) % colorPalette.length].row;
+}
 
 interface Materia {
   id: number;
@@ -21,15 +53,24 @@ interface Materia {
   periodo: string;
   carga_horaria_semanal: number;
   carga_horaria_total: number;
-  tipo: string;
+  tipo: number;
+  tipo_nombre: string;
   contenidos_minimos: string;
   plan_estudio: number;
+  plan_estudio_codigo: string;
+  carrera_nombre: string;
 }
 
 interface PlanOption {
   id: number;
   codigo: string;
   carrera_nombre: string;
+}
+
+interface TipoOption {
+  id: number;
+  nombre: string;
+  activo: boolean;
 }
 
 interface MateriaForm {
@@ -42,7 +83,7 @@ interface MateriaForm {
   periodo: string;
   carga_horaria_semanal: string;
   carga_horaria_total: string;
-  tipo: string;
+  tipo: number;
   contenidos_minimos: string;
 }
 
@@ -60,7 +101,7 @@ const emptyForm: MateriaForm = {
   periodo: "",
   carga_horaria_semanal: "",
   carga_horaria_total: "",
-  tipo: "obligatoria",
+  tipo: 0,
   contenidos_minimos: "",
 };
 
@@ -70,12 +111,6 @@ const CUATRI_OPTIONS = [
   { value: "anual", label: "Anual" },
 ];
 
-const TIPO_OPTIONS = [
-  { value: "obligatoria", label: "Obligatoria" },
-  { value: "optativa", label: "Optativa" },
-  { value: "electiva", label: "Electiva" },
-];
-
 export default function MateriasPage() {
   const { user } = useAuth();
   const canWrite = user?.is_superuser ||
@@ -83,18 +118,18 @@ export default function MateriasPage() {
     user?.group_names?.includes("Secretario Académico") ||
     user?.group_names?.includes("Director Carrera");
 
-  const [filterPlan, setFilterPlan] = useState("");
-  const [filterYear, setFilterYear] = useState("");
-  const qs = [
-    filterPlan && `plan_estudio=${filterPlan}`,
-    filterYear && `año=${filterYear}`,
-  ].filter(Boolean).join("&");
+  const [search, setSearch] = useState("");
+  const qs = search ? `search=${encodeURIComponent(search)}` : "";
   const { data, loading, refetch } = useApiData<{ results: Materia[] }>(
     `/materias/${qs ? `?${qs}` : ""}`,
     [qs]
   );
   const { data: planesData } = useApiData<{ results: PlanOption[] }>(
     "/planes/",
+    []
+  );
+  const { data: tiposData } = useApiData<{ results: TipoOption[] }>(
+    "/tipos-materia/",
     []
   );
 
@@ -107,7 +142,22 @@ export default function MateriasPage() {
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
+  const [tipoSearch, setTipoSearch] = useState("");
+  const [tipoOpen, setTipoOpen] = useState(false);
+  const tipoRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (tipoRef.current && !tipoRef.current.contains(e.target as Node)) {
+        setTipoOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   const planes = planesData?.results || [];
+  const tipos = tiposData?.results || [];
 
   const openCreate = () => {
     setEditingId(null);
@@ -115,6 +165,7 @@ export default function MateriasPage() {
       ...emptyForm,
       plan_estudio: planes.length === 1 ? planes[0].id : 0,
     });
+    setTipoSearch("");
     setErrors({});
     setFormError("");
     modal.openModal();
@@ -137,6 +188,8 @@ export default function MateriasPage() {
       tipo: m.tipo,
       contenidos_minimos: m.contenidos_minimos ?? "",
     });
+    const t = tipos.find((t) => t.id === m.tipo);
+    setTipoSearch(t?.nombre ?? "");
     modal.openModal();
   };
 
@@ -152,6 +205,7 @@ export default function MateriasPage() {
     if (!form.nombre.trim()) newErrors.nombre = "Este campo es obligatorio.";
     if (!form.carga_horaria_total.trim()) newErrors.carga_horaria_total = "Este campo es obligatorio.";
     if (!form.carga_horaria_semanal.trim()) newErrors.carga_horaria_semanal = "Este campo es obligatorio.";
+    if (!form.tipo) newErrors.tipo = "Seleccioná un tipo.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -209,6 +263,12 @@ export default function MateriasPage() {
     }
   };
 
+  const tiposFiltrados = tipos.filter((t) =>
+    t.nombre.toLowerCase().includes(tipoSearch.toLowerCase())
+  );
+
+  const selectedTipo = tipos.find((t) => t.id === form.tipo);
+
   return (
     <>
       <PageMeta title="SACAD - Materias" description="Gestión de Materias" />
@@ -223,21 +283,11 @@ export default function MateriasPage() {
             </h3>
             <div className="flex items-center gap-3">
               <Input
-                placeholder="Plan ID..."
-                value={filterPlan}
-                onChange={(e) => setFilterPlan(e.target.value)}
+                placeholder="Buscar..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
-              <Input
-                placeholder="Año..."
-                value={filterYear}
-                onChange={(e) => setFilterYear(e.target.value)}
-              />
-              {canWrite && (
-                <Button size="sm" onClick={openCreate}>
-                  <PlusIcon className="w-4 h-4" />
-                  Agregar Materia
-                </Button>
-              )}
+              {canWrite && <Button size="sm" startIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="white"/><path d="M12 8v8M8 12h8" stroke="#465fff" strokeWidth={2} strokeLinecap="round"/></svg>} className="font-semibold" onClick={openCreate}>Agregar Materia</Button>}
             </div>
           </div>
         </div>
@@ -247,6 +297,8 @@ export default function MateriasPage() {
               <tr>
                 <th className="px-4 py-3">Código</th>
                 <th className="px-4 py-3">Nombre</th>
+                <th className="px-4 py-3">Carrera</th>
+                <th className="px-4 py-3">Plan</th>
                 <th className="px-4 py-3">Año</th>
                 <th className="px-4 py-3">Período</th>
                 <th className="px-4 py-3">Créditos</th>
@@ -258,26 +310,28 @@ export default function MateriasPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center">Cargando...</td></tr>
+                <tr><td colSpan={11} className="px-4 py-8 text-center">Cargando...</td></tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={11} className="px-4 py-8 text-center text-gray-400">
                     No hay materias registradas
                   </td>
                 </tr>
               ) : (
                 data?.results?.map((m) => (
-                  <tr key={m.id} className="border-b border-gray-200 dark:border-gray-700">
+                  <tr key={m.id} className={`border-b border-gray-200 dark:border-gray-700 ${getRowClass(m.tipo_nombre)}`}>
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">{m.codigo}</td>
                     <td className="px-4 py-3">{m.nombre}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{m.carrera_nombre}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{m.plan_estudio_codigo}</td>
                     <td className="px-4 py-3">{m.año}</td>
                     <td className="px-4 py-3">{m.periodo || m.cuatrimestre}</td>
                     <td className="px-4 py-3 font-medium">{m.creditos ?? "-"}</td>
                     <td className="px-4 py-3">{m.carga_horaria_semanal}</td>
                     <td className="px-4 py-3">{m.carga_horaria_total}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500 capitalize">
-                        {m.tipo}
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full capitalize ${getBadgeClass(m.tipo_nombre)}`}>
+                        {m.tipo_nombre}
                       </span>
                     </td>
                     {canWrite && (
@@ -449,18 +503,58 @@ export default function MateriasPage() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="tipo">Tipo</Label>
-                <select
-                  id="tipo"
-                  value={form.tipo}
-                  onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+              <div ref={tipoRef} className="relative">
+                <Label htmlFor="tipo-search">Tipo</Label>
+                <input
+                  id="tipo-search"
+                  type="text"
+                  placeholder="Buscar tipo..."
+                  value={tipoSearch}
+                  onFocus={() => setTipoOpen(true)}
+                  onChange={(e) => {
+                    setTipoSearch(e.target.value);
+                    setTipoOpen(true);
+                    setForm({ ...form, tipo: 0 });
+                  }}
                   className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-                >
-                  {TIPO_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                />
+                {tipoOpen && (
+                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto">
+                    {tiposFiltrados.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-400">Sin resultados</div>
+                    ) : (
+                      tiposFiltrados.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          className={`w-full px-4 py-2.5 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                            form.tipo === t.id
+                              ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                              : "text-gray-800 dark:text-white/90"
+                          }`}
+                          onClick={() => {
+                            setForm({ ...form, tipo: t.id });
+                            setTipoSearch(t.nombre);
+                            setTipoOpen(false);
+                          }}
+                        >
+                          <span className="capitalize">{t.nombre}</span>
+                          {!t.activo && (
+                            <span className="ml-2 text-xs text-gray-400">(inactivo)</span>
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+                {selectedTipo && !tipoOpen && (
+                  <p className="mt-1 text-xs text-gray-400 capitalize">
+                    Seleccionado: {selectedTipo.nombre}
+                  </p>
+                )}
+                {errors.tipo && (
+                  <p className="mt-1 text-xs text-error-500">{errors.tipo}</p>
+                )}
               </div>
 
               <div>

@@ -20,6 +20,7 @@ import ConfiguracionPage from "./pages/SACAD/ConfiguracionPage";
 import AutorizacionUsuariosPage from "./pages/SACAD/AutorizacionUsuariosPage";
 import GestionDominiosPage from "./pages/SACAD/GestionDominiosPage";
 import GestionRolesPage from "./pages/SACAD/GestionRolesPage";
+import GestionTiposMateriaPage from "./pages/SACAD/GestionTiposMateriaPage";
 import SearchPage from "./pages/SACAD/SearchPage";
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
               <Route path="/configuracion/usuarios" element={<AutorizacionUsuariosPage />} />
               <Route path="/configuracion/dominios" element={<GestionDominiosPage />} />
               <Route path="/configuracion/roles" element={<GestionRolesPage />} />
+              <Route path="/configuracion/tipos-materia" element={<GestionTiposMateriaPage />} />
               <Route path="/buscar" element={<SearchPage />} />
             </Route>
           </Route>

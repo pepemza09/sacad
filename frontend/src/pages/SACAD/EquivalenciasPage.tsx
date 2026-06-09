@@ -6,7 +6,7 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
-import { PencilIcon, TrashBinIcon, PlusIcon } from "../../icons";
+import { PencilIcon, TrashBinIcon } from "../../icons";
 import { equivalenciasApi } from "../../api/services";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 
@@ -271,10 +271,7 @@ export default function EquivalenciasPage() {
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
                 Equivalencias Registradas
               </h3>
-              <Button size="sm" onClick={openCreate}>
-                <PlusIcon className="w-4 h-4" />
-                Agregar
-              </Button>
+              <Button size="sm" startIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="white"/><path d="M12 8v8M8 12h8" stroke="#465fff" strokeWidth={2} strokeLinecap="round"/></svg>} className="font-semibold" onClick={openCreate}>Agregar Equivalencia</Button>
             </div>
           </div>
           <div className="p-6 overflow-y-auto max-h-96">

@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from sacad.apps.usuarios.models import Profile
+from sacad.apps.academica.models import TipoMateria
 
 User = get_user_model()
 
@@ -44,3 +45,7 @@ class Command(BaseCommand):
 
         user.save()
         self.stdout.write(self.style.SUCCESS(f"Grupos asignados a {email}"))
+
+        for tipo_nombre in ["obligatoria", "optativa", "electiva"]:
+            TipoMateria.objects.get_or_create(nombre=tipo_nombre)
+        self.stdout.write(self.style.SUCCESS("Tipos de materia creados"))

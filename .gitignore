@@ -62,3 +62,6 @@ free-react-tailwind-admin-dashboard-main/
 
 # OS
 Thumbs.db
+
+# Temp
+tmp/

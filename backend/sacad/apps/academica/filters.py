@@ -46,6 +46,7 @@ class PlanEstudioFilter(django_filters.FilterSet):
 
 class MateriaFilter(django_filters.FilterSet):
     año = django_filters.NumberFilter(field_name="año")
+    tipo = django_filters.NumberFilter(field_name="tipo__id")
 
     class Meta:
         model = Materia
@@ -55,7 +56,6 @@ class MateriaFilter(django_filters.FilterSet):
             "nombre": ["icontains"],
             "año": ["exact"],
             "cuatrimestre": ["exact"],
-            "tipo": ["exact"],
             "creditos": ["exact", "gte", "lte"],
             "periodo": ["exact", "icontains"],
         }

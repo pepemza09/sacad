@@ -6,7 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import ProtectedError
 from .models import (
     Facultad, Sede, Carrera, PlanEstudio,
-    Materia, Correlatividad,
+    Materia, Correlatividad, TipoMateria,
 )
 from .serializers import (
     FacultadSerializer, FacultadListSerializer,
@@ -15,6 +15,7 @@ from .serializers import (
     PlanEstudioSerializer, PlanEstudioListSerializer,
     MateriaSerializer, MateriaDetailSerializer,
     CorrelatividadSerializer, ArbolCurricularSerializer,
+    TipoMateriaSerializer,
 )
 from .filters import (
     FacultadFilter, SedeFilter, CarreraFilter,
@@ -179,9 +180,9 @@ class PlanEstudioViewSet(viewsets.ModelViewSet):
 
 
 class MateriaViewSet(viewsets.ModelViewSet):
-    queryset = Materia.objects.select_related("plan_estudio").all()
+    queryset = Materia.objects.select_related("plan_estudio__carrera").all()
     filterset_class = MateriaFilter
-    search_fields = ["nombre", "codigo"]
+    search_fields = ["nombre", "codigo", "periodo", "tipo__nombre", "contenidos_minimos"]
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
@@ -214,3 +215,15 @@ class CorrelatividadViewSet(viewsets.ModelViewSet):
     queryset = Correlatividad.objects.select_related("materia", "materia_requerida").all()
     serializer_class = CorrelatividadSerializer
     permission_classes = [IsAuthenticated, EsDirectorCarrera]
+
+
+class TipoMateriaViewSet(viewsets.ModelViewSet):
+    queryset = TipoMateria.objects.all()
+    serializer_class = TipoMateriaSerializer
+    search_fields = ["nombre"]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [EsSecretarioAcademico()]
+        return [IsAuthenticated()]

@@ -122,16 +122,24 @@ class PlanEstudio(models.Model):
         return f"{self.carrera.nombre} - {self.codigo}"
 
 
+class TipoMateria(models.Model):
+    nombre = models.CharField(max_length=50, unique=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Tipo de Materia"
+        verbose_name_plural = "Tipos de Materia"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+
 class Materia(models.Model):
     CUATRIMESTRE_CHOICES = [
         ("1", "Primer Cuatrimestre"),
         ("2", "Segundo Cuatrimestre"),
         ("anual", "Anual"),
-    ]
-    TIPO_CHOICES = [
-        ("obligatoria", "Obligatoria"),
-        ("optativa", "Optativa"),
-        ("electiva", "Electiva"),
     ]
 
     plan_estudio = models.ForeignKey(
@@ -150,7 +158,9 @@ class Materia(models.Model):
     )
     carga_horaria_semanal = models.PositiveIntegerField()
     carga_horaria_total = models.PositiveIntegerField()
-    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    tipo = models.ForeignKey(
+        TipoMateria, on_delete=models.PROTECT, related_name="materias"
+    )
     contenidos_minimos = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
@@ -166,7 +176,6 @@ class Materia(models.Model):
         indexes = [
             models.Index(fields=["plan_estudio", "año"]),
             models.Index(fields=["plan_estudio", "codigo"]),
-            models.Index(fields=["tipo"]),
         ]
 
     def __str__(self):

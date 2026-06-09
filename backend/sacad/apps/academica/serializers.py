@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Facultad, Sede, Carrera, PlanEstudio, TituloIntermedio, Materia, Correlatividad
+from .models import Facultad, Sede, Carrera, PlanEstudio, TituloIntermedio, Materia, Correlatividad, TipoMateria
 
 
 class FacultadSerializer(serializers.ModelSerializer):
@@ -153,13 +153,26 @@ class PlanEstudioListSerializer(serializers.ModelSerializer):
         return obj.materias.count()
 
 
+class TipoMateriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoMateria
+        fields = "__all__"
+
+
 class MateriaSerializer(serializers.ModelSerializer):
+    tipo_nombre = serializers.CharField(source="tipo.nombre", read_only=True)
+    plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
+    carrera_nombre = serializers.CharField(source="plan_estudio.carrera.nombre", read_only=True)
+
     class Meta:
         model = Materia
         fields = "__all__"
 
 
 class MateriaDetailSerializer(serializers.ModelSerializer):
+    tipo_nombre = serializers.CharField(source="tipo.nombre", read_only=True)
+    plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
+    carrera_nombre = serializers.CharField(source="plan_estudio.carrera.nombre", read_only=True)
     correlativas = serializers.SerializerMethodField()
     requisito_de = serializers.SerializerMethodField()
 
