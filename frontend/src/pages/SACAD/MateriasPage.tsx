@@ -11,6 +11,7 @@ import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
 
+
 const colorPalette = [
   { badge: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-500", row: "bg-blue-50/40 dark:bg-blue-500/[0.04]" },
   { badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-500", row: "bg-emerald-50/40 dark:bg-emerald-500/[0.04]" },
@@ -235,7 +236,7 @@ export default function MateriasPage() {
           response?: { status?: number; data?: Record<string, string | string[]> };
         };
         if (axiosErr.response?.status === 401) {
-          setFormError("Debe iniciar sesión para realizar esta acción.");
+          setFormError("Iniciá sesión para realizar esta acción.");
           return;
         }
         const apiErrors = axiosErr.response?.data;
@@ -258,8 +259,9 @@ export default function MateriasPage() {
       await apiClient.delete(`/materias/${deletingId}/`);
       setDeletingId(null);
       refetch();
-    } catch {
-      setDeleteError("Error al eliminar la materia. Puede que tenga correlativas asociadas.");
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setDeleteError(detail || "No se pudo eliminar la materia. Puede que tenga correlativas asociadas.");
     }
   };
 

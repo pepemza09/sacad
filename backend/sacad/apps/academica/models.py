@@ -135,6 +135,23 @@ class TipoMateria(models.Model):
         return self.nombre
 
 
+class Area(models.Model):
+    plan_estudio = models.ForeignKey(
+        PlanEstudio, on_delete=models.CASCADE, related_name="areas"
+    )
+    nombre = models.CharField(max_length=255)
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Área"
+        verbose_name_plural = "Áreas"
+        ordering = ["plan_estudio", "orden", "nombre"]
+        unique_together = ["plan_estudio", "nombre"]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.plan_estudio.codigo})"
+
+
 class Materia(models.Model):
     CUATRIMESTRE_CHOICES = [
         ("1", "Primer Cuatrimestre"),
@@ -158,6 +175,9 @@ class Materia(models.Model):
     )
     carga_horaria_semanal = models.PositiveIntegerField()
     carga_horaria_total = models.PositiveIntegerField()
+    area = models.ForeignKey(
+        Area, on_delete=models.SET_NULL, null=True, blank=True, related_name="materias"
+    )
     tipo = models.ForeignKey(
         TipoMateria, on_delete=models.PROTECT, related_name="materias"
     )
@@ -209,4 +229,4 @@ class Correlatividad(models.Model):
 
     def clean(self):
         if self.materia.plan_estudio != self.materia_requerida.plan_estudio:
-            raise ValidationError("Las correlativas deben pertenecer al mismo plan de estudio.")
+            raise ValidationError("Las correlativas deben ser del mismo plan de estudio.")

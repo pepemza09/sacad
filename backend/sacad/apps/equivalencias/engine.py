@@ -91,8 +91,7 @@ class EquivalenciasEngine:
                 )
                 if ciclo_inverso.exists():
                     return False, (
-                        f"Equivalencia cíclica detectada entre "
-                        f"materia {oid} y {did}"
+                        f"Equivalencia cíclica entre las materias {oid} y {did}."
                     )
         return True, None
 
@@ -112,8 +111,7 @@ class EquivalenciasEngine:
         )
         if len(planes) == 1:
             return False, (
-                "No pueden existir equivalencias entre materias "
-                "del mismo plan de estudio."
+                "No pueden existir equivalencias entre materias del mismo plan."
             )
         return True, None
 

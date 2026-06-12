@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Facultad, Sede, Carrera, PlanEstudio, TituloIntermedio, Materia, Correlatividad
+from .models import Facultad, Sede, Carrera, PlanEstudio, TituloIntermedio, Area, Materia, Correlatividad
 
 
 @admin.register(Facultad)
@@ -40,6 +40,14 @@ class PlanEstudioAdmin(admin.ModelAdmin):
     search_fields = ["codigo", "carrera__nombre"]
     autocomplete_fields = ["carrera"]
     filter_horizontal = ["titulos_intermedios"]
+
+
+@admin.register(Area)
+class AreaAdmin(admin.ModelAdmin):
+    list_display = ["nombre", "plan_estudio", "orden"]
+    list_filter = ["plan_estudio"]
+    search_fields = ["nombre"]
+    autocomplete_fields = ["plan_estudio"]
 
 
 @admin.register(Materia)

@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     FacultadViewSet, SedeViewSet, CarreraViewSet,
     PlanEstudioViewSet, MateriaViewSet, CorrelatividadViewSet,
-    TipoMateriaViewSet,
+    TipoMateriaViewSet, AreaViewSet,
 )
 from .dashboard import dashboard_stats
 
@@ -15,6 +15,7 @@ router.register(r"planes", PlanEstudioViewSet)
 router.register(r"materias", MateriaViewSet)
 router.register(r"correlatividades", CorrelatividadViewSet)
 router.register(r"tipos-materia", TipoMateriaViewSet)
+router.register(r"areas", AreaViewSet)
 
 urlpatterns = router.urls + [
     path("dashboard/stats/", dashboard_stats, name="dashboard-stats"),

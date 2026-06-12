@@ -32,10 +32,10 @@ def update_zoom(request):
         profile = Profile.objects.create(user=request.user)
     zoom = request.data.get("zoom_level")
     if zoom is None:
-        return Response({"error": "zoom_level es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Indicá el nivel de zoom."}, status=status.HTTP_400_BAD_REQUEST)
     zoom = float(zoom)
     if zoom < 50 or zoom > 200:
-        return Response({"error": "zoom_level debe estar entre 50 y 200"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "El zoom debe estar entre 50 y 200."}, status=status.HTTP_400_BAD_REQUEST)
     profile.zoom_level = zoom
     profile.save(update_fields=["zoom_level"])
     return Response({"zoom_level": zoom})
@@ -61,11 +61,11 @@ def google_login(request):
     code = request.data.get("code")
     if not code:
         return Response(
-            {"error": "Código de autorización requerido"},
+            {"error": "Código de autorización requerido."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     return Response(
-        {"message": "Use /accounts/google/login/ para el flujo completo OAuth"},
+        {"message": "Usá /accounts/google/login/ para el flujo completo de OAuth."},
         status=status.HTTP_200_OK,
     )
 
@@ -119,7 +119,7 @@ def google_complete(request):
 @permission_classes([IsAuthenticated])
 def users_list(request):
     if not request.user.is_staff:
-        return Response({"detail": "No tienes permiso para ver esta lista."}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "No tenés permiso para ver esta lista."}, status=status.HTTP_403_FORBIDDEN)
 
     status_filter = request.query_params.get("status")
     users_qs = User.objects.all().order_by("-date_joined")
@@ -150,7 +150,7 @@ def users_list(request):
 @permission_classes([IsAuthenticated])
 def approve_user(request, user_id):
     if not request.user.is_staff:
-        return Response({"detail": "No tienes permiso para aprobar usuarios."}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "No tenés permiso para aprobar usuarios."}, status=status.HTTP_403_FORBIDDEN)
     user = get_object_or_404(User, id=user_id)
     profile, _ = Profile.objects.get_or_create(user=user)
     user.is_active = True
@@ -170,7 +170,7 @@ def approve_user(request, user_id):
 @permission_classes([IsAuthenticated])
 def reject_user(request, user_id):
     if not request.user.is_staff:
-        return Response({"detail": "No tienes permiso para rechazar usuarios."}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "No tenés permiso para rechazar usuarios."}, status=status.HTTP_403_FORBIDDEN)
     user = get_object_or_404(User, id=user_id)
     profile, _ = Profile.objects.get_or_create(user=user)
     user.is_active = False
@@ -186,7 +186,7 @@ def reject_user(request, user_id):
 @permission_classes([IsAuthenticated])
 def pending_users(request):
     if not request.user.is_staff:
-        return Response({"detail": "No tienes permiso para ver esta lista."}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "No tenés permiso para ver esta lista."}, status=status.HTTP_403_FORBIDDEN)
     users = User.objects.filter(is_active=False).values("id", "email", "first_name", "last_name", "date_joined")
     return Response(list(users))
 
@@ -195,7 +195,7 @@ def pending_users(request):
 @permission_classes([IsAuthenticated])
 def allowed_domains(request):
     if not request.user.is_staff:
-        return Response({"detail": "No tienes permiso."}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == "POST":
         serializer = AllowedDomainSerializer(data=request.data)
@@ -211,7 +211,7 @@ def allowed_domains(request):
 @permission_classes([IsAuthenticated])
 def delete_allowed_domain(request, domain_id):
     if not request.user.is_staff:
-        return Response({"detail": "No tienes permiso."}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
     domain = get_object_or_404(AllowedDomain, id=domain_id)
     domain.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
@@ -221,7 +221,7 @@ def delete_allowed_domain(request, domain_id):
 @permission_classes([IsAuthenticated])
 def groups_list(request):
     if not request.user.is_staff:
-        return Response({"detail": "No tienes permiso."}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
     groups = Group.objects.all().values("id", "name")
     return Response(list(groups))
 
@@ -230,7 +230,7 @@ def groups_list(request):
 @permission_classes([IsAuthenticated])
 def update_user_groups(request, user_id):
     if not request.user.is_staff:
-        return Response({"detail": "No tienes permiso."}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
     target_user = get_object_or_404(User, id=user_id)
     group_names = request.data.get("groups", [])
     groups = Group.objects.filter(name__in=group_names)

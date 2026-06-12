@@ -3,10 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import ProtectedError
 from .models import (
     Facultad, Sede, Carrera, PlanEstudio,
-    Materia, Correlatividad, TipoMateria,
+    Materia, Correlatividad, TipoMateria, Area,
 )
 from .serializers import (
     FacultadSerializer, FacultadListSerializer,
@@ -15,7 +14,7 @@ from .serializers import (
     PlanEstudioSerializer, PlanEstudioListSerializer,
     MateriaSerializer, MateriaDetailSerializer,
     CorrelatividadSerializer, ArbolCurricularSerializer,
-    TipoMateriaSerializer,
+    TipoMateriaSerializer, AreaSerializer,
 )
 from .filters import (
     FacultadFilter, SedeFilter, CarreraFilter,
@@ -42,32 +41,20 @@ class FacultadViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        try:
-            self.perform_destroy(instance)
-        except ProtectedError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        try:
-            self.perform_destroy(instance)
-        except ProtectedError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def perform_destroy(self, instance):
-        if instance.sedes.exists():
-            raise ProtectedError(
-                f"No se puede eliminar la facultad porque tiene {instance.sedes.count()} sede(s) asociada(s).",
-                instance.sedes.all(),
+        n_sedes = instance.sedes.count()
+        if n_sedes:
+            return Response(
+                {"detail": f"Facultad no eliminable: tiene {n_sedes} sede{'s' if n_sedes != 1 else ''} asociada{'s' if n_sedes != 1 else ''}. Eliminá las sedes primero."},
+                status=status.HTTP_409_CONFLICT,
             )
-        if instance.carreras.exists():
-            raise ProtectedError(
-                f"No se puede eliminar la facultad porque tiene {instance.carreras.count()} carrera(s) asociada(s).",
-                instance.carreras.all(),
+        n_carreras = instance.carreras.count()
+        if n_carreras:
+            return Response(
+                {"detail": f"Facultad no eliminable: tiene {n_carreras} carrera{'s' if n_carreras != 1 else ''} asociada{'s' if n_carreras != 1 else ''}. Eliminá las carreras primero."},
+                status=status.HTTP_409_CONFLICT,
             )
-        instance.delete()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SedeViewSet(viewsets.ModelViewSet):
@@ -88,19 +75,14 @@ class SedeViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        try:
-            self.perform_destroy(instance)
-        except ProtectedError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def perform_destroy(self, instance):
-        if instance.carreras.exists():
-            raise ProtectedError(
-                f"No se puede eliminar la sede porque tiene {instance.carreras.count()} carrera(s) asociada(s).",
-                instance.carreras.all(),
+        n = instance.carreras.count()
+        if n:
+            return Response(
+                {"detail": f"Sede no eliminable: tiene {n} carrera{'s' if n != 1 else ''} asociada{'s' if n != 1 else ''}. Eliminá las carreras primero."},
+                status=status.HTTP_409_CONFLICT,
             )
-        instance.delete()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CarreraViewSet(viewsets.ModelViewSet):
@@ -122,19 +104,16 @@ class CarreraViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        try:
-            self.perform_destroy(instance)
-        except ProtectedError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def perform_destroy(self, instance):
-        if instance.planes.exists():
-            raise ProtectedError(
-                f"No se puede eliminar la carrera porque tiene {instance.planes.count()} plan(es) de estudio asociado(s).",
-                instance.planes.all(),
+        n = instance.planes.count()
+        if n:
+            return Response(
+                {
+                    "detail": f"Carrera no eliminable: tiene {n} plan{'es' if n != 1 else ''} de estudio asociado{'s' if n != 1 else ''}. Eliminá los planes primero."
+                },
+                status=status.HTTP_409_CONFLICT,
             )
-        instance.delete()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PlanEstudioViewSet(viewsets.ModelViewSet):
@@ -155,19 +134,16 @@ class PlanEstudioViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        try:
-            self.perform_destroy(instance)
-        except ProtectedError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def perform_destroy(self, instance):
-        if instance.materias.exists():
-            raise ProtectedError(
-                f"No se puede eliminar el plan porque tiene {instance.materias.count()} materia(s) asociada(s).",
-                instance.materias.all(),
+        n = instance.materias.count()
+        if n:
+            return Response(
+                {
+                    "detail": f"Plan no eliminable: tiene {n} materia{'s' if n != 1 else ''} asociada{'s' if n != 1 else ''}. Eliminá las materias primero."
+                },
+                status=status.HTTP_409_CONFLICT,
             )
-        instance.delete()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get"])
     def arbol_curricular(self, request, pk=None):
@@ -205,29 +181,26 @@ class MateriaViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        try:
-            self.perform_destroy(instance)
-        except ProtectedError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        n_req = instance.requisito_de.count()
+        if n_req:
+            return Response(
+                {"detail": f"Materia no eliminable: es requisito de {n_req} correlatividad{'es' if n_req != 1 else ''}. Eliminá las correlatividades primero."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        n_orig = instance.equivalencias_origen.count()
+        if n_orig:
+            return Response(
+                {"detail": f"Materia no eliminable: está referenciada en {n_orig} equivalencia{'s' if n_orig != 1 else ''} como origen. Eliminá las equivalencias primero."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        n_dest = instance.equivalencias_destino.count()
+        if n_dest:
+            return Response(
+                {"detail": f"Materia no eliminable: está referenciada en {n_dest} equivalencia{'s' if n_dest != 1 else ''} como destino. Eliminá las equivalencias primero."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def perform_destroy(self, instance):
-        if instance.requisito_de.exists():
-            raise ProtectedError(
-                f"No se puede eliminar la materia porque es requisito de {instance.requisito_de.count()} correlatividad(es).",
-                instance.requisito_de.all(),
-            )
-        if instance.equivalencias_origen.exists():
-            raise ProtectedError(
-                f"No se puede eliminar la materia porque está referenciada en {instance.equivalencias_origen.count()} equivalencia(s) como origen.",
-                instance.equivalencias_origen.all(),
-            )
-        if instance.equivalencias_destino.exists():
-            raise ProtectedError(
-                f"No se puede eliminar la materia porque está referenciada en {instance.equivalencias_destino.count()} equivalencia(s) como destino.",
-                instance.equivalencias_destino.all(),
-            )
-        instance.delete()
 
     @action(detail=True, methods=["get"])
     def correlativas(self, request, pk=None):
@@ -243,6 +216,36 @@ class MateriaViewSet(viewsets.ModelViewSet):
             for c in corrs
         ]
         return Response(data)
+
+
+class AreaViewSet(viewsets.ModelViewSet):
+    queryset = Area.objects.select_related("plan_estudio").all()
+    serializer_class = AreaSerializer
+    search_fields = ["nombre"]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        plan_estudio = self.request.query_params.get("plan_estudio")
+        if plan_estudio:
+            qs = qs.filter(plan_estudio_id=plan_estudio)
+        return qs
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [EsSecretarioAcademico()]
+        return [IsAuthenticated()]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        n = instance.materias.count()
+        if n:
+            return Response(
+                {"detail": f"Área no eliminable: tiene {n} materia{'s' if n != 1 else ''} asociada{'s' if n != 1 else ''}. Eliminá las materias primero."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CorrelatividadViewSet(viewsets.ModelViewSet):

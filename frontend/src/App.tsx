@@ -13,6 +13,7 @@ import FacultadesPage from "./pages/SACAD/FacultadesPage";
 import SedesPage from "./pages/SACAD/SedesPage";
 import CarrerasPage from "./pages/SACAD/CarrerasPage";
 import PlanesPage from "./pages/SACAD/PlanesPage";
+import AreasPage from "./pages/SACAD/AreasPage";
 import MateriasPage from "./pages/SACAD/MateriasPage";
 import EquivalenciasPage from "./pages/SACAD/EquivalenciasPage";
 import ProfilePage from "./pages/SACAD/ProfilePage";
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/sedes" element={<SedesPage />} />
               <Route path="/carreras" element={<CarrerasPage />} />
               <Route path="/planes" element={<PlanesPage />} />
+              <Route path="/areas" element={<AreasPage />} />
               <Route path="/materias" element={<MateriasPage />} />
               <Route path="/equivalencias" element={<EquivalenciasPage />} />
               <Route path="/profile" element={<ProfilePage />} />

@@ -183,7 +183,7 @@ export default function CarrerasPage() {
           };
         };
         if (axiosErr.response?.status === 401) {
-          setFormError("Debe iniciar sesión para realizar esta acción.");
+          setFormError("Iniciá sesión para realizar esta acción.");
           return;
         }
         const apiErrors = axiosErr.response?.data;
@@ -219,12 +219,12 @@ export default function CarrerasPage() {
         if (axiosErr.response?.status === 409) {
           setDeleteError(
             axiosErr.response.data?.detail ||
-              "No se puede eliminar la carrera porque tiene planes de estudio asociados."
+              "La carrera tiene planes de estudio asociados. Eliminalos primero."
           );
           return;
         }
       }
-      setDeleteError("Error al eliminar la carrera.");
+      setDeleteError("No se pudo eliminar la carrera.");
     }
   };
 

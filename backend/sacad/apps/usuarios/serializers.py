@@ -47,11 +47,11 @@ class EmailTokenObtainSerializer(serializers.Serializer):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            raise serializers.ValidationError("Credenciales inválidas")
+            raise serializers.ValidationError("Credenciales inválidas.")
         if not check_password(password, user.password):
-            raise serializers.ValidationError("Credenciales inválidas")
+            raise serializers.ValidationError("Credenciales inválidas.")
         if not user.is_active:
-            raise serializers.ValidationError("Cuenta desactivada")
+            raise serializers.ValidationError("Cuenta desactivada.")
         attrs["user"] = user
         return attrs
 

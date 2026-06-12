@@ -76,7 +76,7 @@ export default function AutorizacionUsuariosPage() {
       setRejectingId(null);
       refetch();
     } catch {
-      setRejectError("Error al rechazar el usuario.");
+      setRejectError("No se pudo rechazar el usuario.");
     } finally {
       setActionLoading(null);
     }
@@ -90,7 +90,7 @@ export default function AutorizacionUsuariosPage() {
       setDeactivatingId(null);
       refetch();
     } catch {
-      setDeactivateError("Error al desactivar el usuario.");
+      setDeactivateError("No se pudo desactivar el usuario.");
     } finally {
       setActionLoading(null);
     }

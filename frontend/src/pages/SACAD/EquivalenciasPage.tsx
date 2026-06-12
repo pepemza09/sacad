@@ -16,8 +16,17 @@ interface MateriaOption {
   id: number;
   codigo: string;
   nombre: string;
+  plan_estudio: number;
   plan_estudio_codigo: string;
   carrera_nombre: string;
+}
+
+interface MateriaDisplay {
+  id: number;
+  codigo: string;
+  nombre: string;
+  plan_estudio: number;
+  plan_estudio_codigo: string;
 }
 
 interface Equivalencia {
@@ -26,8 +35,8 @@ interface Equivalencia {
   plan_destino_nombre: string;
   materias_origen: number[];
   materias_destino: number[];
-  materias_origen_display: { id: number; codigo: string; nombre: string }[];
-  materias_destino_display: { id: number; codigo: string; nombre: string }[];
+  materias_origen_display: MateriaDisplay[];
+  materias_destino_display: MateriaDisplay[];
   tipo: string;
   porcentaje: number | null;
   resolucion: string;
@@ -177,6 +186,10 @@ export default function EquivalenciasPage() {
 
   const materias = materiasData?.results || [];
   const { user } = useAuth();
+  const pageSize = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil((data?.results?.length || 0) / pageSize));
+  const paginated = data?.results?.slice((page - 1) * pageSize, page * pageSize) || [];
   const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || user?.group_names?.includes("Director Carrera");
   const modal = useModal();
   const [form, setForm] = useState<EquivalenciaForm>(emptyForm);
@@ -205,6 +218,7 @@ export default function EquivalenciasPage() {
   const [consulting, setConsulting] = useState(false);
 
   const planes = planesData?.results || [];
+  useEffect(() => { setPage(1); }, [data]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -224,14 +238,16 @@ export default function EquivalenciasPage() {
         id: m.id,
         codigo: m.codigo,
         nombre: m.nombre,
-        plan_estudio_codigo: "",
+        plan_estudio: m.plan_estudio,
+        plan_estudio_codigo: m.plan_estudio_codigo,
         carrera_nombre: "",
       })),
       materias_destino: eq.materias_destino_display.map((m) => ({
         id: m.id,
         codigo: m.codigo,
         nombre: m.nombre,
-        plan_estudio_codigo: "",
+        plan_estudio: m.plan_estudio,
+        plan_estudio_codigo: m.plan_estudio_codigo,
         carrera_nombre: "",
       })),
       tipo: eq.tipo,
@@ -309,7 +325,7 @@ export default function EquivalenciasPage() {
           };
         };
         if (axiosErr.response?.status === 401) {
-          setFormError("Debe iniciar sesión para realizar esta acción.");
+          setFormError("Iniciá sesión para realizar esta acción.");
           return;
         }
         const apiErrors = axiosErr.response?.data;
@@ -333,7 +349,7 @@ export default function EquivalenciasPage() {
       setDeletingId(null);
       refetch();
     } catch {
-      setDeleteError("Error al eliminar la equivalencia.");
+      setDeleteError("No se pudo eliminar la equivalencia.");
     }
   };
 
@@ -474,7 +490,7 @@ export default function EquivalenciasPage() {
               )}
             </div>
           </div>
-          <div className="p-6 overflow-y-auto max-h-96">
+          <div className="p-6">
             {loading ? (
               <p className="text-center text-gray-500">Cargando...</p>
             ) : data?.results?.length === 0 ? (
@@ -482,62 +498,81 @@ export default function EquivalenciasPage() {
                 No hay equivalencias registradas
               </p>
             ) : (
-              <div className="space-y-3">
-                {data?.results?.map((eq) => (
-                  <div
-                    key={eq.id}
-                    className="p-3 border rounded-lg border-gray-200 dark:border-gray-700"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-400">#{eq.id}</span>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex px-2 py-0.5 text-xs rounded-full ${
-                            eq.activa
-                              ? "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500"
-                              : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-                          }`}
-                        >
-                          {eq.activa ? "Activa" : "Inactiva"}
-                        </span>
-                        {canWrite && (
-                          <button
-                            onClick={() => openEdit(eq)}
-                            className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                          >
+              <>
+              <div className="space-y-2">
+                {paginated.map((eq) => {
+                  const origenPlan = eq.materias_origen_display[0]?.plan_estudio_codigo || "";
+                  const destCodes = eq.materias_destino_display.map((m) => `${m.codigo} ${m.nombre}`).join(" + ");
+                  const oriCodes = eq.materias_origen_display.map((m) => m.codigo).join(" + ");
+                  return (
+                    <div
+                      key={eq.id}
+                      className="flex items-center gap-2 p-3 border rounded-lg border-gray-200 dark:border-gray-700 text-sm"
+                    >
+                      <span className="text-gray-800 dark:text-white/90 font-medium">
+                        {oriCodes || "Sin origen"}
+                      </span>
+                      <span className="text-xs text-gray-400">({origenPlan})</span>
+                      <span className="text-gray-400">&gt;&gt;</span>
+                      <span className="text-gray-800 dark:text-white/90 font-medium">
+                        {destCodes || "Sin destino"}
+                      </span>
+                      <span className="text-xs text-gray-400">({eq.plan_destino_nombre})</span>
+                      <span
+                        className={`ml-auto inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
+                          eq.tipo === "total"
+                            ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                            : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-500"
+                        }`}
+                      >
+                        {eq.tipo === "total" ? "Total" : "Parcial"}
+                      </span>
+                      {eq.porcentaje && (
+                        <span className="text-xs text-gray-400">{eq.porcentaje}%</span>
+                      )}
+                      <span className={`inline-flex px-2 py-0.5 text-xs rounded-full ${
+                        eq.activa
+                          ? "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500"
+                          : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      }`}>
+                        {eq.activa ? "Activa" : "Inactiva"}
+                      </span>
+                      {canWrite && (
+                        <>
+                          <button onClick={() => openEdit(eq)} className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
                             <PencilIcon className="w-3.5 h-3.5" />
                           </button>
-                        )}
-                        {canWrite && (
-                          <button
-                            onClick={() => openDelete(eq)}
-                            className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                          >
+                          <button onClick={() => openDelete(eq)} className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
                             <TrashBinIcon className="w-3.5 h-3.5" />
                           </button>
-                        )}
-                      </div>
+                        </>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-500">
-                      {eq.materias_origen_display
-                        .map((m) => m.nombre)
-                        .join(" + ") || "Sin origen"}
-                    </p>
-                    <p className="text-xs text-gray-400">&rarr;</p>
-                    <p className="text-xs font-medium text-gray-800 dark:text-white/90">
-                      {eq.materias_destino_display
-                        .map((m) => m.nombre)
-                        .join(" + ") || "Sin destino"}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-400">
-                      {eq.tipo}{" "}
-                      {eq.porcentaje ? `- ${eq.porcentaje}%` : ""} |{" "}
-                      {eq.plan_destino_nombre}
-                      {eq.resolucion && ` | ${eq.resolucion}`}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4">
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => setPage(page - 1)}
+                    className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                  >
+                    Anterior
+                  </button>
+                  <span className="text-sm text-gray-500">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(page + 1)}
+                    className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>

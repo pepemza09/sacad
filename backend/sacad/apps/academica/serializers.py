@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Facultad, Sede, Carrera, PlanEstudio, TituloIntermedio, Materia, Correlatividad, TipoMateria
+from .models import Facultad, Sede, Carrera, PlanEstudio, TituloIntermedio, Area, Materia, Correlatividad, TipoMateria
 
 
 class FacultadSerializer(serializers.ModelSerializer):
@@ -12,7 +12,7 @@ class FacultadSerializer(serializers.ModelSerializer):
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise serializers.ValidationError("Ya existe una facultad con este nombre corto.")
+            raise serializers.ValidationError("Ya existe una facultad con ese nombre corto.")
         return value
 
     def validate_nombre(self, value):
@@ -20,7 +20,7 @@ class FacultadSerializer(serializers.ModelSerializer):
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise serializers.ValidationError("Ya existe una facultad con este nombre.")
+            raise serializers.ValidationError("Ya existe una facultad con ese nombre.")
         return value
 
 
@@ -153,6 +153,18 @@ class PlanEstudioListSerializer(serializers.ModelSerializer):
         return obj.materias.count()
 
 
+class AreaSerializer(serializers.ModelSerializer):
+    plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
+    materias_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Area
+        fields = "__all__"
+
+    def get_materias_count(self, obj):
+        return obj.materias.count()
+
+
 class TipoMateriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = TipoMateria
@@ -163,6 +175,7 @@ class MateriaSerializer(serializers.ModelSerializer):
     tipo_nombre = serializers.CharField(source="tipo.nombre", read_only=True)
     plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
     carrera_nombre = serializers.CharField(source="plan_estudio.carrera.nombre", read_only=True)
+    area_nombre = serializers.CharField(source="area.nombre", read_only=True, allow_null=True)
 
     class Meta:
         model = Materia
@@ -173,6 +186,7 @@ class MateriaDetailSerializer(serializers.ModelSerializer):
     tipo_nombre = serializers.CharField(source="tipo.nombre", read_only=True)
     plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
     carrera_nombre = serializers.CharField(source="plan_estudio.carrera.nombre", read_only=True)
+    area_nombre = serializers.CharField(source="area.nombre", read_only=True, allow_null=True)
     correlativas = serializers.SerializerMethodField()
     requisito_de = serializers.SerializerMethodField()
 

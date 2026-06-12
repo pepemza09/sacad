@@ -49,7 +49,7 @@ class EquivalenciaViewSet(viewsets.ModelViewSet):
 
         if not materias_origen_raw or not plan_destino:
             return Response(
-                {"error": "Se requieren materias_origen y plan_destino"},
+                {"error": "Especificá las materias origen y el plan destino."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -62,7 +62,7 @@ class EquivalenciaViewSet(viewsets.ModelViewSet):
             plan_destino_id = int(plan_destino)
         except ValueError:
             return Response(
-                {"error": "IDs inválidos"},
+                {"error": "Los IDs de materias o el plan destino no son válidos."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

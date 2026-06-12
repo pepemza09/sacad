@@ -150,7 +150,7 @@ export default function PlanesPage() {
     if (!form.carrera) newErrors.carrera = "Seleccioná una carrera.";
     if (!form.codigo.trim()) newErrors.codigo = "Este campo es obligatorio.";
     if (!form.titulo_otorga.trim()) newErrors.titulo_otorga = "Este campo es obligatorio.";
-    if (!form.duracion_anos || form.duracion_anos < 1) newErrors.duracion_anos = "Debe ser mayor a 0.";
+    if (!form.duracion_anos || form.duracion_anos < 1) newErrors.duracion_anos = "Tiene que ser mayor a 0.";
     if (!form.año_inicio_implementacion) newErrors.año_inicio_implementacion = "Este campo es obligatorio.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -176,7 +176,7 @@ export default function PlanesPage() {
       if (err && typeof err === "object" && "response" in err) {
         const axiosErr = err as { response?: { status?: number; data?: Record<string, string | string[]> } };
         if (axiosErr.response?.status === 401) {
-          setFormError("Debe iniciar sesión para realizar esta acción.");
+          setFormError("Iniciá sesión para realizar esta acción.");
           return;
         }
         const apiErrors = axiosErr.response?.data;
@@ -206,11 +206,11 @@ export default function PlanesPage() {
       if (err && typeof err === "object" && "response" in err) {
         const axiosErr = err as { response?: { status?: number; data?: { detail?: string } } };
         if (axiosErr.response?.status === 409) {
-          setDeleteError(axiosErr.response.data?.detail || "No se puede eliminar el plan porque tiene materias asociadas.");
+          setDeleteError(axiosErr.response.data?.detail || "El plan tiene materias asociadas. Eliminalas primero.");
           return;
         }
       }
-      setDeleteError("Error al eliminar el plan.");
+      setDeleteError("No se pudo eliminar el plan.");
     }
   };
 

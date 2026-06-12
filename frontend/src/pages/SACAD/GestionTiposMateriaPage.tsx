@@ -64,7 +64,7 @@ export default function GestionTiposMateriaPage() {
         const msgs = Object.values(data).flat().join(" ");
         setError(msgs);
       } else {
-        setError("Error al guardar.");
+        setError("No se pudo guardar.");
       }
     } finally {
       setSaving(false);
@@ -78,7 +78,7 @@ export default function GestionTiposMateriaPage() {
       setDeleteId(null);
       refetch();
     } catch {
-      setError("No se puede eliminar el tipo. Puede que tenga materias asociadas.");
+      setError("El tipo tiene materias asociadas. Eliminalas primero.");
     }
   };
 

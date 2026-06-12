@@ -32,7 +32,7 @@ export default function GestionDominiosPage() {
       setNewDomain("");
       refetch();
     } catch (err: any) {
-      const detail = err?.response?.data?.domain?.[0] || err?.response?.data?.detail || "Error al agregar dominio.";
+      const detail = err?.response?.data?.domain?.[0] || err?.response?.data?.detail || "No se pudo agregar el dominio.";
       setError(detail);
     } finally {
       setAdding(false);
@@ -46,7 +46,7 @@ export default function GestionDominiosPage() {
       setDeleteId(null);
       refetch();
     } catch {
-      setError("Error al eliminar el dominio.");
+      setError("No se pudo eliminar el dominio.");
     }
   };
 

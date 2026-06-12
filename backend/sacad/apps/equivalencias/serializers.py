@@ -16,13 +16,25 @@ class EquivalenciaSerializer(serializers.ModelSerializer):
 
     def get_materias_origen_display(self, obj):
         return [
-            {"id": m.id, "codigo": m.codigo, "nombre": m.nombre}
+            {
+                "id": m.id,
+                "codigo": m.codigo,
+                "nombre": m.nombre,
+                "plan_estudio": m.plan_estudio_id,
+                "plan_estudio_codigo": m.plan_estudio.codigo,
+            }
             for m in obj.materias_origen.all()
         ]
 
     def get_materias_destino_display(self, obj):
         return [
-            {"id": m.id, "codigo": m.codigo, "nombre": m.nombre}
+            {
+                "id": m.id,
+                "codigo": m.codigo,
+                "nombre": m.nombre,
+                "plan_estudio": m.plan_estudio_id,
+                "plan_estudio_codigo": m.plan_estudio.codigo,
+            }
             for m in obj.materias_destino.all()
         ]
 
@@ -35,7 +47,7 @@ class EquivalenciaSerializer(serializers.ModelSerializer):
             materias_destino = request.data.get("materias_destino", [])
             if not materias_origen or not materias_destino:
                 raise serializers.ValidationError(
-                    "Debe especificar materias de origen y destino"
+                    "Especificá las materias de origen y destino."
                 )
             valido, error = EquivalenciasEngine.validar_mismo_plan(
                 materias_origen, materias_destino

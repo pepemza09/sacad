@@ -90,14 +90,14 @@ export default function FacultadesPage() {
   const openDelete = (f: Facultad) => {
     if (f.sedes_count && f.sedes_count > 0) {
       setDeleteBlockedReason(
-        `No se puede eliminar la facultad "${f.nombre}" porque tiene ${f.sedes_count} sede${f.sedes_count === 1 ? "" : "s"} asociada${f.sedes_count === 1 ? "" : "s"}.`
-      );
+              `La facultad "${f.nombre}" tiene ${f.sedes_count} sede${f.sedes_count === 1 ? "" : "s"} asociada${f.sedes_count === 1 ? "" : "s"}. Eliminálas primero.`
+            );
       return;
     }
     if (f.carreras_count && f.carreras_count > 0) {
       setDeleteBlockedReason(
-        `No se puede eliminar la facultad "${f.nombre}" porque tiene ${f.carreras_count} carrera${f.carreras_count === 1 ? "" : "s"} asociada${f.carreras_count === 1 ? "" : "s"}.`
-      );
+              `La facultad "${f.nombre}" tiene ${f.carreras_count} carrera${f.carreras_count === 1 ? "" : "s"} asociada${f.carreras_count === 1 ? "" : "s"}. Eliminalas primero.`
+            );
       return;
     }
     setDeletingId(f.id);
@@ -134,7 +134,7 @@ export default function FacultadesPage() {
           };
         };
         if (axiosErr.response?.status === 401) {
-          setFormError("Debe iniciar sesión para realizar esta acción.");
+          setFormError("Iniciá sesión para realizar esta acción.");
           return;
         }
         const apiErrors = axiosErr.response?.data;
@@ -160,7 +160,7 @@ export default function FacultadesPage() {
       setDeletingId(null);
       refetch();
     } catch {
-      setDeleteError("Error al eliminar la facultad.");
+      setDeleteError("No se pudo eliminar la facultad.");
     }
   };
 

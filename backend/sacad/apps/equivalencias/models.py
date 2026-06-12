@@ -52,7 +52,7 @@ class Equivalencia(models.Model):
                     planes.add(m.plan_estudio_id)
                 if len(planes) == 1:
                     raise ValidationError(
-                        "No pueden existir equivalencias entre materias del mismo plan de estudio."
+                        "No pueden existir equivalencias entre materias del mismo plan."
                     )
 
     def save(self, *args, **kwargs):

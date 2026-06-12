@@ -163,7 +163,7 @@ export default function SedesPage() {
           };
         };
         if (axiosErr.response?.status === 401) {
-          setFormError("Debe iniciar sesión para realizar esta acción.");
+          setFormError("Iniciá sesión para realizar esta acción.");
           return;
         }
         const apiErrors = axiosErr.response?.data;
@@ -196,12 +196,12 @@ export default function SedesPage() {
         if (axiosErr.response?.status === 409) {
           setDeleteError(
             axiosErr.response.data?.detail ||
-              "No se puede eliminar la sede porque tiene carreras asociadas."
+              "La sede tiene carreras asociadas. Eliminalas primero."
           );
           return;
         }
       }
-      setDeleteError("Error al eliminar la sede.");
+      setDeleteError("No se pudo eliminar la sede.");
     }
   };
 
