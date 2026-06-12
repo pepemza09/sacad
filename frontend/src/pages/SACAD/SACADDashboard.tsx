@@ -1,5 +1,6 @@
 import PageMeta from "../../components/common/PageMeta";
 import { useApiData } from "../../hooks/useApiData";
+import { GridIcon, GroupIcon, DocsIcon, BoxCubeIcon } from "../../icons";
 
 interface Stats {
   total_facultades: number;
@@ -17,11 +18,12 @@ interface Stats {
   }[];
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value, icon: Icon }: { label: string; value: number; icon: React.ComponentType<{ className?: string }> }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+        <Icon className="size-5 text-gray-400 dark:text-gray-500" />
       </div>
       <div className="flex items-end justify-between mt-3">
         <h4 className="font-bold text-gray-800 text-title-sm dark:text-white/90">{value}</h4>
@@ -57,10 +59,10 @@ export default function SACADDashboard() {
         description="Sistema de Administración de Carreras, Actividades y Docentes"
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Facultades" value={stats?.total_facultades ?? 0} />
-        <StatCard label="Carreras" value={stats?.total_carreras ?? 0} />
-        <StatCard label="Planes Vigentes" value={stats?.planes_vigentes ?? 0} />
-        <StatCard label="Materias" value={stats?.total_materias ?? 0} />
+        <StatCard label="Facultades" value={stats?.total_facultades ?? 0} icon={GridIcon} />
+        <StatCard label="Carreras" value={stats?.total_carreras ?? 0} icon={GroupIcon} />
+        <StatCard label="Planes Vigentes" value={stats?.planes_vigentes ?? 0} icon={DocsIcon} />
+        <StatCard label="Materias" value={stats?.total_materias ?? 0} icon={BoxCubeIcon} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 mt-6 xl:grid-cols-2">

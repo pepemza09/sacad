@@ -37,8 +37,16 @@ class FacultadViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
-            return [EsAdminUniversidad()]
+            return [EsSecretarioAcademico()]
         return [IsAuthenticated()]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -194,6 +202,32 @@ class MateriaViewSet(viewsets.ModelViewSet):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [EsDirectorCarrera()]
         return [IsAuthenticated()]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_destroy(self, instance):
+        if instance.requisito_de.exists():
+            raise ProtectedError(
+                f"No se puede eliminar la materia porque es requisito de {instance.requisito_de.count()} correlatividad(es).",
+                instance.requisito_de.all(),
+            )
+        if instance.equivalencias_origen.exists():
+            raise ProtectedError(
+                f"No se puede eliminar la materia porque está referenciada en {instance.equivalencias_origen.count()} equivalencia(s) como origen.",
+                instance.equivalencias_origen.all(),
+            )
+        if instance.equivalencias_destino.exists():
+            raise ProtectedError(
+                f"No se puede eliminar la materia porque está referenciada en {instance.equivalencias_destino.count()} equivalencia(s) como destino.",
+                instance.equivalencias_destino.all(),
+            )
+        instance.delete()
 
     @action(detail=True, methods=["get"])
     def correlativas(self, request, pk=None):

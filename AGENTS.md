@@ -20,7 +20,7 @@ sacad/
 │   │   ├── urls.py           # Rutas raíz (admin, api/auth/, api/ academica + equivalencias, accounts/)
 │   │   ├── celery.py         # Placeholder (vacio)
 │   │   └── apps/
-│   │       ├── academica/    # Facultades, Sedes, Carreras, Planes, Materias, Correlatividades
+│   │       ├── academica/    # Facultades, Sedes, Carreras, Planes, Materias, Correlatividades, TipoMateria
 │   │       ├── usuarios/     # Auth, Profile, AllowedDomain, Google OAuth
 │   │       └── equivalencias/# Equivalencias entre materias + motor de resolución en cascada
 │   └── manage.py
@@ -40,7 +40,7 @@ sacad/
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
 ├── Makefile
-├── spec.json                 # Especificación completa del proyecto
+├── spec.json                 # Especificación completa del proyecto (ligeramente desactualizada)
 └── .env.example
 ```
 
@@ -71,8 +71,9 @@ sacad/
 | `Carrera` | facultad (FK), codigo, codigo_ministerial, nombre_corto, nombre, titulo_otorga, duracion_anos, nivel, modalidad, sedes (M2M), director (FK->User), activa | unique_together: (facultad, codigo) |
 | `TituloIntermedio` | nombre, duracion_anos | Independiente, M2M desde PlanEstudio |
 | `PlanEstudio` | carrera (FK), codigo, version, titulo_otorga, duracion_anos, año_inicio_implementacion, vigente, titulos_intermedios (M2M) | unique_together: (carrera, codigo) |
-| `Materia` | plan_estudio (FK), codigo, nombre, año, cuatrimestre (1/2/anual), carga_horaria_semanal, carga_horaria_total, tipo (obligatoria/optativa/electiva), contenidos_minimos | unique_together: (plan_estudio, codigo) |
-| `Correlatividad` | materia (FK), materia_requerida (FK), tipo (cursar/aprobar/regular) | unique_together: (materia, materia_requerida, tipo). Valida mismo plan_estudio |
+| `TipoMateria` | nombre (unique), activo | — |
+| `Materia` | plan_estudio (FK), codigo, nombre, año, cuatrimestre (1/2/anual), creditos, periodo, carga_horaria_semanal, carga_horaria_total, tipo (FK->TipoMateria), contenidos_minimos | unique_together: (plan_estudio, codigo) |
+| `Correlatividad` | materia (FK), materia_requerida (FK), tipo (cursar/cursado/aprobar/aprobacion/regular) | unique_together: (materia, materia_requerida, tipo). Valida mismo plan_estudio |
 
 ### usuarios
 
@@ -112,24 +113,25 @@ sacad/
 | `/groups/` | GET | Staff | Lista grupos |
 
 ### Académica (`/api/`)
-| Endpoint | ViewSet | Permiso escritura |
-|----------|---------|-------------------|
-| `/facultades/` | FacultadViewSet | Admin Universidad |
-| `/sedes/` | SedeViewSet | Secretario Académico |
-| `/carreras/` | CarreraViewSet | Secretario Académico |
-| `/planes/` | PlanEstudioViewSet | Secretario Académico |
-| `/planes/<id>/arbol-curricular/` | @action GET | Auth |
-| `/materias/` | MateriaViewSet | Director Carrera |
-| `/materias/<id>/correlativas/` | @action GET | Auth |
-| `/correlatividades/` | CorrelatividadViewSet | Director Carrera |
-| `/dashboard/stats/` | Function GET | Auth |
+| Endpoint | ViewSet | Permiso lectura | Permiso escritura |
+|----------|---------|----------------|-------------------|
+| `/facultades/` | FacultadViewSet | Auth | Admin Universidad |
+| `/sedes/` | SedeViewSet | Auth | Secretario Académico |
+| `/carreras/` | CarreraViewSet | Auth | Secretario Académico |
+| `/planes/` | PlanEstudioViewSet | Auth | Secretario Académico |
+| `/planes/<id>/arbol-curricular/` | @action GET | Auth | — |
+| `/materias/` | MateriaViewSet | Auth | Director Carrera |
+| `/materias/<id>/correlativas/` | @action GET | Auth | — |
+| `/correlatividades/` | CorrelatividadViewSet | Director Carrera | Director Carrera |
+| `/tipos-materia/` | TipoMateriaViewSet | Auth | Secretario Académico |
+| `/dashboard/stats/` | Function GET | Auth | — |
 
 ### Equivalencias (`/api/`)
 | Endpoint | Método | Descripción |
 |----------|--------|-------------|
 | `/equivalencias/` | GET/POST | CRUD |
 | `/equivalencias/<id>/` | PUT/DELETE | CRUD |
-| `/equivalencias/consultar/` | GET | Resolución en cascada |
+| `/equivalencias/consultar/` | GET | Resolución en cascada (BFS) |
 | `/equivalencias/validar/` | POST | Validar ciclos |
 
 ## Backend — Permisos
@@ -137,31 +139,63 @@ sacad/
 | Clase | Lógica | Aplica a |
 |-------|--------|----------|
 | `EsAdminUniversidad` | superuser OR group "Admin Universidad" | Facultad write |
-| `EsSecretarioAcademico` | superuser OR groups ["Admin Universidad", "Secretario Académico"] | Sede, Carrera, Plan write |
+| `EsSecretarioAcademico` | superuser OR groups ["Admin Universidad", "Secretario Académico"] | Sede, Carrera, Plan, TipoMateria write |
 | `EsDirectorCarrera` | superuser OR groups ["Admin Universidad", "Secretario Académico", "Director Carrera"] | Materia, Correlatividad write |
+
+## Backend — Serializers
+
+| ViewSet | List Serializer | Detail/Create Serializer |
+|---------|----------------|-------------------------|
+| FacultadViewSet | FacultadListSerializer (con carreras_count, sedes_count) | FacultadSerializer (full) |
+| SedeViewSet | SedeListSerializer | SedeSerializer |
+| CarreraViewSet | CarreraListSerializer | CarreraSerializer |
+| PlanEstudioViewSet | PlanEstudioListSerializer (con materias_count) | PlanEstudioSerializer |
+| MateriaViewSet | MateriaSerializer | MateriaDetailSerializer (con correlativas, requisito_de) |
+| CorrelatividadViewSet | CorrelatividadSerializer (único) | CorrelatividadSerializer |
+| TipoMateriaViewSet | TipoMateriaSerializer (único) | TipoMateriaSerializer |
+| EquivalenciaViewSet | EquivalenciaSerializer (único) | EquivalenciaSerializer |
+
+## Backend — Filtros (django-filters)
+
+| FilterSet | Model | Campos |
+|-----------|-------|--------|
+| FacultadFilter | Facultad | activa, nombre (icontains) |
+| SedeFilter | Sede | activa, facultad (exact), nombre (icontains) |
+| CarreraFilter | Carrera | facultad, activa, nivel, modalidad, codigo_ministerial (icontains), nombre_corto (icontains) |
+| PlanEstudioFilter | PlanEstudio | carrera (exact), vigente (exact), año_inicio_implementacion (exact/gte/lte) |
+| MateriaFilter | Materia | plan_estudio (exact), codigo (exact/icontains), nombre (icontains), año, cuatrimestre, creditos (exact/gte/lte), periodo, tipo (tipo__id) |
+| CorrelatividadViewSet | — | Sin filtros |
+| EquivalenciaViewSet | — | Filtro manual por plan_destino, materia_origen en get_queryset() |
 
 ## Frontend — Páginas y estado
 
-### ✅ Completas (CRUD operativo)
-| Página | Archivo | Rutas |
-|--------|---------|-------|
+### ✅ CRUD completo
+| Página | Archivo | Ruta |
+|--------|---------|------|
 | Dashboard | `pages/SACAD/SACADDashboard.tsx` | `/` |
 | Facultades | `pages/SACAD/FacultadesPage.tsx` | `/facultades` |
 | Sedes | `pages/SACAD/SedesPage.tsx` | `/sedes` |
 | Carreras | `pages/SACAD/CarrerasPage.tsx` | `/carreras` |
 | Planes de Estudio | `pages/SACAD/PlanesPage.tsx` | `/planes` |
-| Configuración | `pages/SACAD/ConfiguracionPage.tsx` | `/configuracion` |
-| Autorización usuarios | `pages/SACAD/AutorizacionUsuariosPage.tsx` | `/configuracion/usuarios` |
+| Materias | `pages/SACAD/MateriasPage.tsx` | `/materias` |
+| Equivalencias | `pages/SACAD/EquivalenciasPage.tsx` | `/equivalencias` |
+| Tipos de Materia | `pages/SACAD/GestionTiposMateriaPage.tsx` | `/configuracion/tipos-materia` |
 | Dominios permitidos | `pages/SACAD/GestionDominiosPage.tsx` | `/configuracion/dominios` |
 | Roles de usuarios | `pages/SACAD/GestionRolesPage.tsx` | `/configuracion/roles` |
 | Perfil | `pages/SACAD/ProfilePage.tsx` | `/profile` |
-| Búsqueda | `pages/SACAD/SearchPage.tsx` | `/buscar` |
 
-### ❌ Solo lectura (falta CRUD)
+### ✅ Gestión (sin CRUD tradicional)
 | Página | Archivo | Ruta |
 |--------|---------|------|
-| Materias | `pages/SACAD/MateriasPage.tsx` | `/materias` |
-| Equivalencias | `pages/SACAD/EquivalenciasPage.tsx` | `/equivalencias` |
+| Configuración (hub) | `pages/SACAD/ConfiguracionPage.tsx` | `/configuracion` |
+| Autorización usuarios | `pages/SACAD/AutorizacionUsuariosPage.tsx` | `/configuracion/usuarios` |
+| Búsqueda | `pages/SACAD/SearchPage.tsx` | `/buscar` |
+
+### ❌ No existe (pendiente)
+| Funcionalidad | Estado |
+|--------------|--------|
+| Gestión de correlatividades (UI) | No existe. Backend: `CorrelatividadViewSet` CRUD + `materias/<id>/correlativas/` GET. Frontend: `services.ts` tiene `createCorrelatividad`, `deleteCorrelatividad`, `materiaCorrelativas` pero sin usar. |
+| Vista detalle de materia | No existe. Backend: `MateriaDetailSerializer` con correlativas y requisito_de. Frontend: `materiaDetalle(id)` en services.ts sin usar. |
 
 ## Frontend — API Layer
 
@@ -206,6 +240,52 @@ sacad/
 - **Serializers**: List serializers separados con counts via `SerializerMethodField`
 - **Filtros**: `django-filters` FilterSets con `DjangoFilterBackend`
 
+## Backend — Gaps conocidos
+
+1. ~~**MateriaViewSet.destroy()** no captura `ProtectedError`~~ ✅ Ahora protege contra correlativas y equivalencias.
+2. **CorrelatividadViewSet** requiere `EsDirectorCarrera` incluso para lectura (global), a diferencia de otros viewsets que usan `IsAuthenticated` para lectura.
+3. **EquivalenciaViewSet** usa filtro manual en `get_queryset()` en vez de `django-filters`.
+4. **CorrelatividadViewSet** no tiene filtros.
+5. No hay endpoint de stats de equivalencias expuesto (el engine tiene `get_stats_plan()`).
+6. **TipoMateriaViewSet.destroy()** ahora captura `ProtectedError` correctamente.
+
+## Frontend — Gaps conocidos
+
+1. **No hay UI de correlatividades** — Mayor gap. No hay forma de gestionar correlatividades (crear/eliminar prerrequisitos). Backend soporta CRUD completo.
+2. ~~**EquivalenciasPage** — Botones create/edit/delete visibles a todos los usuarios autenticados (falta `canWrite`).~~ ✅ Ahora con `canWrite`.
+3. **MateriasPage** — No hay filtro por plan_estudio (el backend lo soporta).
+4. **EquivalenciasPage** — No hay filtro por plan_destino en la lista registrada.
+5. **Servicios no utilizados** — `academicaApi.createMateria`, `updateMateria`, `deleteMateria`, `createCorrelatividad`, `deleteCorrelatividad` definidos en `services.ts` pero no usados (las páginas llaman `apiClient` directamente).
+
+## Proximas tareas lógicas
+
+### 1. UI de Correlatividades
+- Agregar sección dentro del modal de Materia (o página separada)
+- Listar correlativas actuales via `GET /materias/{id}/correlativas/`
+- Agregar nueva correlativa: seleccionar materia + tipo (cursar/cursado/aprobar/aprobacion/regular)
+- Eliminar correlativa via `DELETE /correlatividades/{id}/`
+- Permisos: solo `EsDirectorCarrera`
+
+### 2. Seed data disponible
+- `backend/seed_all.py` — carga Plan 2019 (46 materias), Plan 2026 (30 oblig + 5 opt = 35 materias, Título Intermedio), 20 correlatividades (Ordenanza 12/2025-CD), 27 equivalencias (21 1:1 + 6 N:1)
+- Para recargar: `docker compose cp seed_all.py backend:/app/ && docker compose exec backend python /app/seed_all.py`
+
+### 3. Plan 2026 — Códigos
+| Año | Período | Códigos |
+|-----|---------|---------|
+| 1 (Bimestres/Cuat) | 1er/2do/3er Bim, 2do Cuat | 510201–510207 |
+| 2 (Cuatrimestres) | 1er/2do Cuat | 520201–520209 |
+| 3 (Cuatrimestres) | 1er/2do Cuat | 530201–530207 |
+| 4 (Cuatrimestres) | 1er/2do Cuat | 540201–540207 |
+| Optativas | — | 570201–570205 |
+
+### 4. Correlatividades Plan 2026 — Reglas de promoción
+Para cursar materias de segundo año → aprobar 4 espacios de 1er año.
+Para cursar tercer año → 100% 1er año aprobado + 4 espacios de 2do año.
+Para cursar cuarto año → 100% hasta 2do año aprobado + 4 espacios de 3er año.
+
+**Correlativas complejas:** `540207 Práctica Profesional` ← `530203 + 530205 + 530206 + 540201` (séxtuple). `540202 Control Estratégico` ← `530204 + 520208` (doble).
+
 ## Comandos útiles
 
 ```bash
@@ -217,55 +297,4 @@ make migrate     # docker compose exec backend python manage.py migrate
 make shell       # docker compose exec backend python manage.py shell_plus
 make dev-backend # cd backend && python manage.py runserver 0.0.0.0:8000
 make dev-frontend # cd frontend && npm run dev
-```
-
-## Especulación CRUD Materias (próxima tarea lógica)
-
-La página `MateriasPage.tsx` actualmente solo muestra una tabla read-only. Para implementar CRUD completo:
-
-1. **Formulario (Modal)** con campos:
-   - plan_estudio (buscador dropdown)
-   - codigo, nombre
-   - año (number)
-   - cuatrimestre (select: 1, 2, anual)
-   - carga_horaria_semanal, carga_horaria_total
-   - tipo (select: obligatoria, optativa, electiva)
-   - contenidos_minimos (textarea)
-2. **Gestión de correlatividades** (pestaña/tabla dentro del modal o página separada)
-3. **Permisos**: `canWrite` condicionado a "Admin Universidad", "Secretario Académico", o "Director Carrera"
-4. **DELETE** con protección: backend chequea si tiene correlativas
-5. **Endpoint**: POST/PUT/DELETE `/materias/<id>/` (ya existe en backend)
-
-## Especulación CRUD Equivalencias (próxima tarea lógica)
-
-La página `EquivalenciasPage.tsx` actualmente solo tiene consulta y lista read-only. Para CRUD:
-
-1. **Formulario (Modal)** con campos:
-   - plan_destino (buscador)
-   - materias_origen (multi-select de materias)
-   - materias_destino (multi-select de materias)
-   - tipo (total/parcial)
-   - porcentaje (solo si parcial)
-   - resolucion, observaciones
-   - activa (switch)
-2. **Endpoint**: POST/PUT/DELETE `/equivalencias/<id>/` (ya existe en backend, con `equivalenciasApi`)
-
-## Archivos clave para referencia al implementar CRUD
-
-```typescript
-// Patrón estándar de CRUD (ej: FacultadesPage.tsx)
-// - useApiData para fetch
-// - useModal para control del modal
-// - form state + editingId + errors
-// - handleSubmit con POST/PUT
-// - handleDelete con confirmación
-// - canWrite condicional
-```
-
-```python
-# Patrón backend (ej: FacultadViewSet)
-# - ModelViewSet
-# - get_serializer_class() para list vs detail
-# - get_permissions() por acción
-# - destroy con ProtectedError catch
 ```

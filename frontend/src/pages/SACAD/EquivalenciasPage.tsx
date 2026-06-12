@@ -9,6 +9,7 @@ import Label from "../../components/form/Label";
 import { PencilIcon, TrashBinIcon } from "../../icons";
 import { equivalenciasApi } from "../../api/services";
 import { apiClient } from "../../api";
+import { useAuth } from "../../context/auth/AuthContext";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 
 interface MateriaOption {
@@ -175,6 +176,8 @@ export default function EquivalenciasPage() {
   >("/materias/?limit=500");
 
   const materias = materiasData?.results || [];
+  const { user } = useAuth();
+  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || user?.group_names?.includes("Director Carrera");
   const modal = useModal();
   const [form, setForm] = useState<EquivalenciaForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -185,6 +188,7 @@ export default function EquivalenciasPage() {
   const [deleteError, setDeleteError] = useState("");
 
   // ── Consulta panel ──────────────────────────────────────────────
+  const [consultaOpen, setConsultaOpen] = useState(false);
   const [consultaOrigen, setConsultaOrigen] = useState<MateriaOption[]>([]);
   const [consultaDestino, setConsultaDestino] = useState("");
   const [consultaResult, setConsultaResult] = useState<
@@ -342,14 +346,27 @@ export default function EquivalenciasPage() {
 
       <PageBreadcrumb items={[{ label: "Equivalencias" }]} />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 mb-6">
+      <div className="space-y-6 mb-6">
         {/* ── Consultar Equivalencias ── */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-          <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+          <button
+            onClick={() => setConsultaOpen(!consultaOpen)}
+            className="w-full px-6 py-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between"
+          >
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
               Consultar Equivalencias
             </h3>
-          </div>
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform ${consultaOpen ? "rotate-180" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+          {consultaOpen && (
           <div className="p-6 space-y-4">
             <div>
               <Label>Materias Cursadas (origen)</Label>
@@ -421,6 +438,7 @@ export default function EquivalenciasPage() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* ── Equivalencias Registradas ── */}
@@ -430,28 +448,30 @@ export default function EquivalenciasPage() {
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
                 Equivalencias Registradas
               </h3>
-              <Button
-                size="sm"
-                startIcon={
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle cx="12" cy="12" r="9" fill="white" />
-                    <path
-                      d="M12 8v8M8 12h8"
-                      stroke="#465fff"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                }
-                className="font-semibold"
-                onClick={openCreate}
-              >
-                Agregar Equivalencia
-              </Button>
+              {canWrite && (
+                <Button
+                  size="sm"
+                  startIcon={
+                    <svg
+                      className="w-5 h-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle cx="12" cy="12" r="9" fill="white" />
+                      <path
+                        d="M12 8v8M8 12h8"
+                        stroke="#465fff"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  }
+                  className="font-semibold"
+                  onClick={openCreate}
+                >
+                  Agregar Equivalencia
+                </Button>
+              )}
             </div>
           </div>
           <div className="p-6 overflow-y-auto max-h-96">
@@ -480,18 +500,22 @@ export default function EquivalenciasPage() {
                         >
                           {eq.activa ? "Activa" : "Inactiva"}
                         </span>
-                        <button
-                          onClick={() => openEdit(eq)}
-                          className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                        >
-                          <PencilIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => openDelete(eq)}
-                          className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                        >
-                          <TrashBinIcon className="w-3.5 h-3.5" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => openEdit(eq)}
+                            className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                          >
+                            <PencilIcon className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canWrite && (
+                          <button
+                            onClick={() => openDelete(eq)}
+                            className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                          >
+                            <TrashBinIcon className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                     <p className="text-xs text-gray-500">

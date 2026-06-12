@@ -63,5 +63,10 @@ free-react-tailwind-admin-dashboard-main/
 # OS
 Thumbs.db
 
+# Seed / test data (not part of the project)
+backend/seed_all.py
+backend/update_plan2026.py
+backend/**/management/commands/seed*.py
+
 # Temp
 tmp/
