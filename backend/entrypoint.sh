@@ -8,16 +8,7 @@ echo "Running migrations..."
 python manage.py migrate --noinput
 
 echo "Collecting static files..."
-python manage.py collectstatic --noinput
-
-echo "Creating default groups and admin user..."
-python manage.py crear_admin
-
-echo "Loading demo data..."
-python manage.py poblar_demo
-
-echo "Loading official 2026 study plans..."
-python manage.py cargar_planes_2026
+python manage.py collectstatic --noinput --clear --no-post-process
 
 echo "Starting server..."
 exec gunicorn sacad.wsgi:application \

@@ -339,6 +339,38 @@ docker compose build frontend && docker compose up -d frontend
 docker compose exec backend python manage.py shell
 ```
 
+## Workflow de cambios en la base de datos
+
+Cada vez que se modifique el modelo de datos (nuevos campos, tablas, relaciones), **siempre** seguir este orden para no perder datos:
+
+```bash
+# 1. RESPALDAR datos actuales
+./scripts/backup.sh
+
+# 2. APLICAR cambios de estructura
+#    - Editar models.py
+#    - (Opcional) docker compose build backend
+#    - docker compose exec backend python manage.py makemigrations
+#    - docker compose exec backend python manage.py migrate
+
+# 3. VERIFICAR que los datos siguen intactos
+#    - Navegar por el frontend o consultar la API
+```
+
+**Nunca hacer flush antes de migrar.** Las migraciones de Django están diseñadas para transformar la estructura sin tocar los datos existentes. El orden correcto es:
+
+1. Backup
+2. Migrar (makemigrations + migrate)
+3. Verificar
+
+Si una migración falla por conflictos de datos (ej: campo NOT NULL sin default en tabla con registros):
+- Agregar `null=True` temporalmente
+- Migrar
+- Poblar el campo desde shell/manage.py
+- Hacer segunda migración con `null=False`
+
+**Solo hacer flush cuando se quiera empezar de cero explícitamente** (nunca como paso de una actualización).
+
 ## Notas para agentes futuros
 
 1. **Voseo obligatorio**: todos los mensajes de error del backend y del frontend deben usar "vos". Ej: "Completá los datos", "Seleccioná un plan", "No tenés permiso". NO usar "tú", "usted", "complete", "seleccione".
