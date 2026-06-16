@@ -20,7 +20,7 @@ sacad/
 │   │   ├── urls.py           # Rutas raíz (admin, api/auth/, api/ academica + equivalencias, accounts/)
 │   │   ├── celery.py         # Placeholder (vacio)
 │   │   └── apps/
-│   │       ├── academica/    # Facultades, Sedes, Carreras, Planes, Materias, Correlatividades, TipoMateria
+│   │       ├── academica/    # Facultades, Sedes, Carreras, Planes, Materias, Correlatividades, TipoMateria, Area
 │   │       ├── usuarios/     # Auth, Profile, AllowedDomain, Google OAuth
 │   │       └── equivalencias/# Equivalencias entre materias + motor de resolución en cascada
 │   └── manage.py
@@ -72,7 +72,8 @@ sacad/
 | `TituloIntermedio` | nombre, duracion_anos | Independiente, M2M desde PlanEstudio |
 | `PlanEstudio` | carrera (FK), codigo, version, titulo_otorga, duracion_anos, año_inicio_implementacion, vigente, titulos_intermedios (M2M) | unique_together: (carrera, codigo) |
 | `TipoMateria` | nombre (unique), activo | — |
-| `Materia` | plan_estudio (FK), codigo, nombre, año, cuatrimestre (1/2/anual), creditos, periodo, carga_horaria_semanal, carga_horaria_total, tipo (FK->TipoMateria), contenidos_minimos | unique_together: (plan_estudio, codigo) |
+| `Area` | plan_estudio (FK), nombre, orden | unique_together: (plan_estudio, nombre). Creado DESPUÉS de TipoMateria en models.py |
+| `Materia` | plan_estudio (FK), codigo, nombre, año, cuatrimestre (1/2/anual), creditos, periodo, carga_horaria_semanal, carga_horaria_total, tipo (FK->TipoMateria), area (FK->Area, SET_NULL), contenidos_minimos | unique_together: (plan_estudio, codigo) |
 | `Correlatividad` | materia (FK), materia_requerida (FK), tipo (cursar/cursado/aprobar/aprobacion/regular) | unique_together: (materia, materia_requerida, tipo). Valida mismo plan_estudio |
 
 ### usuarios
@@ -124,6 +125,7 @@ sacad/
 | `/materias/<id>/correlativas/` | @action GET | Auth | — |
 | `/correlatividades/` | CorrelatividadViewSet | Director Carrera | Director Carrera |
 | `/tipos-materia/` | TipoMateriaViewSet | Auth | Secretario Académico |
+| `/areas/` | AreaViewSet | Auth | Secretario Académico |
 | `/dashboard/stats/` | Function GET | Auth | — |
 
 ### Equivalencias (`/api/`)
@@ -139,7 +141,7 @@ sacad/
 | Clase | Lógica | Aplica a |
 |-------|--------|----------|
 | `EsAdminUniversidad` | superuser OR group "Admin Universidad" | Facultad write |
-| `EsSecretarioAcademico` | superuser OR groups ["Admin Universidad", "Secretario Académico"] | Sede, Carrera, Plan, TipoMateria write |
+| `EsSecretarioAcademico` | superuser OR groups ["Admin Universidad", "Secretario Académico"] | Sede, Carrera, Plan, TipoMateria, Area write |
 | `EsDirectorCarrera` | superuser OR groups ["Admin Universidad", "Secretario Académico", "Director Carrera"] | Materia, Correlatividad write |
 
 ## Backend — Serializers
@@ -153,6 +155,7 @@ sacad/
 | MateriaViewSet | MateriaSerializer | MateriaDetailSerializer (con correlativas, requisito_de) |
 | CorrelatividadViewSet | CorrelatividadSerializer (único) | CorrelatividadSerializer |
 | TipoMateriaViewSet | TipoMateriaSerializer (único) | TipoMateriaSerializer |
+| AreaViewSet | AreaSerializer (con plan_estudio_codigo, materias_count) | AreaSerializer |
 | EquivalenciaViewSet | EquivalenciaSerializer (único) | EquivalenciaSerializer |
 
 ## Backend — Filtros (django-filters)
@@ -177,6 +180,7 @@ sacad/
 | Sedes | `pages/SACAD/SedesPage.tsx` | `/sedes` |
 | Carreras | `pages/SACAD/CarrerasPage.tsx` | `/carreras` |
 | Planes de Estudio | `pages/SACAD/PlanesPage.tsx` | `/planes` |
+| Áreas | `pages/SACAD/AreasPage.tsx` | `/areas` |
 | Materias | `pages/SACAD/MateriasPage.tsx` | `/materias` |
 | Equivalencias | `pages/SACAD/EquivalenciasPage.tsx` | `/equivalencias` |
 | Tipos de Materia | `pages/SACAD/GestionTiposMateriaPage.tsx` | `/configuracion/tipos-materia` |
@@ -203,7 +207,7 @@ sacad/
 - **Cliente**: Axios con interceptor JWT (lee `sessionStorage.access_token`)
 - **Refresh automático**: Response interceptor captura 401, refresca con `/auth/token/refresh/`
 - **Servicios**: `api/services.ts` → `academicaApi`, `equivalenciasApi`, `authApi`
-- **Páginas CRUD** llaman `apiClient` directamente para POST/PUT/DELETE
+- **Páginas CRUD** llaman `apiClient` directamente para POST/PUT/DELETE (NO usan `academicaApi` desde services.ts)
 
 ## Frontend — Auth Flow
 
@@ -228,26 +232,40 @@ sacad/
 - **Botones**: `Button` component con `size="sm"`, variant `primary`/`outline`
 - **Form inputs**: `InputField` (wrapper) o `<input>` directo con clases
 - **Breadcrumb**: Componente `PageBreadcrumb` con `items` array
-- **CRUD pattern**: Modal para create/edit, Modal para delete confirmation
+- **CRUD pattern**:
+  - Modal para create/edit: `<Modal isOpen={modal.isOpen} onClose={closeModal} className="max-w-[500px] m-4">`
+  - Título + descripción en el header del modal
+  - Campos de formulario con `<label>` + `<input>` + mensaje de error
+  - Botones Cancelar + "Crear X" / "Guardar cambios" al fondo (flex justify-end)
+  - Modal independiente para delete confirmation
 - **Permisos condicionales**: `canWrite = user?.is_superuser || user?.group_names?.includes("Rol")`
 - **Manejo de errores**: Catch axios error → mapear `response.data` a `FieldErrors`
+- **Modal crece con `max-w-[90vw]`** en lugar de `!w-[90vw]` para cascada correcta
+- **Busqueda de FK en modales**: dropdown con `useRef` + `handleClickOutside` + filtro local
 
 ## Backend — Convenciones de código
 
-- **ViewSets**: `ModelViewSet` con `get_serializer_class()` para list vs detail
+- **ViewSets**: `ModelViewSet` con `get_serializer_class()` para list vs detail. Cada ViewSet define sus propios permisos y filtros.
 - **Permissions**: `get_permissions()` method que retorna distintas clases por acción
-- **Protected delete**: `destroy()` catches `ProtectedError` → 409
+- **Protected delete**: NO se usa `raise ProtectedError(msg, queryset)`. En su lugar, se captura `IntegrityError` o se verifica manualmente y se retorna `Response({"detail": msg}, 409)`.
 - **Serializers**: List serializers separados con counts via `SerializerMethodField`
 - **Filtros**: `django-filters` FilterSets con `DjangoFilterBackend`
+- **Voseo**: Todos los mensajes de error usan "vos" (ej: "Completá", "seleccioná", "tenés"). No usar "tú" ni "usted".
+- **seed_*.py**: Archivos en `backend/sacad/apps/academica/management/commands/seed_*.py` están en `.gitignore`. Archivos en `backend/` (raíz) que coincidan con `seed*.py` están en commit actual pero NO están en `.gitignore`.
+- **`seed_data.py`** (force-trackeado): `backend/sacad/apps/academica/management/commands/seed_data.py` — comando de gestión idempotente (`get_or_create`), crea superuser + facultad + sedes + carrera + título intermedio + plan + tipo materia + áreas + materias. Este archivo fue forzado con `git add -f` para ignorar el `.gitignore` de seed_*.py.
+- **DB actual**: Flusheada + migrada + superuser `admin@sacad.edu` / `admin123` (sin otros datos). Recargar con `docker compose exec backend python manage.py seed_data`.
+- **No necesitás makemigrations**: las migraciones actuales (0001 a 0004) están en el repo. El entrypoint `makemigrations --noinput` solo se fija si hay cambios nuevos. Hoy no hay cambios pendientes.
 
 ## Backend — Gaps conocidos
 
-1. ~~**MateriaViewSet.destroy()** no captura `ProtectedError`~~ ✅ Ahora protege contra correlativas y equivalencias.
+1. ~~**MateriaViewSet.destroy()** no captura `ProtectedError`~~ ✅ Ahora protege contra correlativas y equivalencias con `Response({"detail": ...}, 409)`.
 2. **CorrelatividadViewSet** requiere `EsDirectorCarrera` incluso para lectura (global), a diferencia de otros viewsets que usan `IsAuthenticated` para lectura.
 3. **EquivalenciaViewSet** usa filtro manual en `get_queryset()` en vez de `django-filters`.
 4. **CorrelatividadViewSet** no tiene filtros.
 5. No hay endpoint de stats de equivalencias expuesto (el engine tiene `get_stats_plan()`).
-6. **TipoMateriaViewSet.destroy()** ahora captura `ProtectedError` correctamente.
+6. ~~**TipoMateriaViewSet.destroy()** no captura `ProtectedError`~~ ✅ Ahora retorna `Response({"detail": ...}, 409)`.
+7. **AreaViewSet.delete** verifica `if a.materias_count > 0` y retorna 409 manualmente.
+8. ~~**MateriaViewSet** sin filtro de plan_estudio en el frontend~~ ✅ El backend lo soporta (MateriaFilter tiene `plan_estudio__exact`), el frontend no lo expone aún.
 
 ## Frontend — Gaps conocidos
 
@@ -257,7 +275,25 @@ sacad/
 4. **EquivalenciasPage** — No hay filtro por plan_destino en la lista registrada.
 5. **Servicios no utilizados** — `academicaApi.createMateria`, `updateMateria`, `deleteMateria`, `createCorrelatividad`, `deleteCorrelatividad` definidos en `services.ts` pero no usados (las páginas llaman `apiClient` directamente).
 
-## Proximas tareas lógicas
+## Frontend — Cambios recientes (histórico para agentes)
+
+- **Area model** creado con FK plan_estudio, fields nombre + orden, unique_together (plan_estudio, nombre). Agregado después de TipoMateria en models.py. Materia.area FK SET_NULL.
+- **Migrations 0001-0004** creadas y aplicadas: 0001 inicial, 0002 tipomateria, 0003 area_materia_area, 0004 remove_idx.
+- **AreaAdmin** registrado en admin.py.
+- **AreaSerializer** con plan_estudio_codigo + materias_count como read-only (SerializerMethodField y Source).
+- **AreaViewSet** en views.py: full CRUD, filtro por plan_estudio (django-filters `AreaFilter`), delete chequea materias_count.
+- **URLs**: router `registrar_router(r"areas", AreaViewSet)` en urls.py.
+- **EquivalenciasDisplaySerializer**: materias_origen_display y materias_destino_display ahora devuelven `plan_estudio` (id) y `plan_estudio_codigo` (string) además de id, codigo, nombre.
+- **EquivalenciasPage**: formato de línea única: `origen1, origen2 (plan) >> destino (plan)`. Badge `Total`/`Parcial` con colores.
+- **Delete en views.py**: TODOS los `destroy()` fueron limpiados — se eliminó `raise ProtectedError(msg, queryset)` (que devolvía una tupla fea como mensaje). Ahora retornan `Response({"detail": mensaje}, 409)`. Afecta a Facultad, Sede, Carrera, PlanEstudio, Materia, TipoMateria, Area.
+- **MateriasPage handleDelete**: antes hardcodeaba "No se puede..." ahora lee `err.response.data.detail`.
+- **Modal width fix**: MateriasPage dejó de usar `isFullscreen` + `!w-[90vw]`. Ahora usa `max-w-[90vw]` en className y `w-full` de contentClasses se limita naturalmente.
+- **Button placement fix**: MateriasPage movió submit a la par de Cancelar abajo del modal. Grid cambió de `grid-cols-3` a `grid-cols-2`.
+- **seed_data command**: `backend/sacad/apps/academica/management/commands/seed_data.py`. Idempotente (get_or_create). Carga superuser, facultad, sedes, carrera, título intermedio, plan 2026, tipo materia, 8 áreas, 35 materias. Forzado en git con `git add -f`.
+- **AreasPage**: convertida de formulario inline a `<Modal>`, siguiendo el mismo patrón de PlanesPage (useModal, closeModal que resetea estado, botones al fondo).
+- **Sidebar**: agregado "Áreas" entre "Planes de Estudio" y "Materias". Ruta `/areas` en App.tsx entre `/planes` y `/materias`.
+
+## Próximas tareas lógicas
 
 ### 1. UI de Correlatividades
 - Agregar sección dentro del modal de Materia (o página separada)
@@ -267,8 +303,11 @@ sacad/
 - Permisos: solo `EsDirectorCarrera`
 
 ### 2. Seed data disponible
-- `backend/seed_all.py` — carga Plan 2019 (46 materias), Plan 2026 (30 oblig + 5 opt = 35 materias, Título Intermedio), 20 correlatividades (Ordenanza 12/2025-CD), 27 equivalencias (21 1:1 + 6 N:1)
-- Para recargar: `docker compose cp seed_all.py backend:/app/ && docker compose exec backend python /app/seed_all.py`
+- `backend/sacad/apps/academica/management/commands/seed_data.py` — comando idempotente (`get_or_create`). Para ejecutar:
+  ```bash
+  docker compose exec backend python manage.py seed_data
+  ```
+- Carga: superuser `admin@sacad.edu` / `admin123`, facultad "FCE", sede "Mendoza", carrera "Contador Público", plan 2026, 1 tipo materia, 8 áreas, 35 materias.
 
 ### 3. Plan 2026 — Códigos
 | Año | Período | Códigos |
@@ -297,4 +336,22 @@ make migrate     # docker compose exec backend python manage.py migrate
 make shell       # docker compose exec backend python manage.py shell_plus
 make dev-backend # cd backend && python manage.py runserver 0.0.0.0:8000
 make dev-frontend # cd frontend && npm run dev
+
+# Reconstruir frontend tras cambios
+docker compose build frontend && docker compose up -d frontend
+
+# Recargar seed data
+docker compose exec backend python manage.py seed_data
+
+# Shell de Django
+docker compose exec backend python manage.py shell
 ```
+
+## Notas para agentes futuros
+
+1. **Voseo obligatorio**: todos los mensajes de error del backend y del frontend deben usar "vos". Ej: "Completá los datos", "Seleccioná un plan", "No tenés permiso". NO usar "tú", "usted", "complete", "seleccione".
+2. **Equivalencias engine**: BFS con `issubset()` para N:1. Soporta 1:1, 1:N, N:1. No soporta cascada multi-hop (solo single-hop, la BFS se usa para encontrar caminos, no para transitividad múltiple de equivalencias).
+3. **No usar ProtectedError**: en ningún view. Siempre `Response({"detail": mensaje}, 409)`.
+4. **Modal pattern**: `max-w-[...]` en className (no `!w-[...]`), contentClasses tiene `w-full` fijo. Los botones de formulario siempre van al fondo (flex justify-end), nunca en medio de los campos.
+5. **Seed scripts gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` está en `.gitignore`. Si se quiere forzar tracking, usar `git add -f`. El comando actual forzado es `seed_data.py`.
+6. **DB actualmente limpia**: solo superuser + seed_data. No hay datos de Plan 2019 cargados. Los scripts `seed_all.py` y `seed_plan2019.py` existen localmente pero están gitignored y no se usan.

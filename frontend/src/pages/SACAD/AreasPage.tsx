@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useApiData } from "../../hooks/useApiData";
+import { useModal } from "../../hooks/useModal";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import { TrashBinIcon, PencilIcon } from "../../icons";
@@ -30,8 +31,8 @@ interface FieldErrors {
 export default function AreasPage() {
   const { data: areas, loading, refetch } = useApiData<{ results: Area[] }>("/areas/");
   const { data: planes } = useApiData<{ results: PlanOption[] }>("/planes/");
+  const modal = useModal();
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
   const [nombre, setNombre] = useState("");
   const [orden, setOrden] = useState(0);
   const [planEstudio, setPlanEstudio] = useState<number | undefined>(undefined);
@@ -63,7 +64,6 @@ export default function AreasPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setShowCreate(true);
     setNombre("");
     setOrden(0);
     setPlanEstudio(undefined);
@@ -71,11 +71,11 @@ export default function AreasPage() {
     setError("");
     setErrors({});
     setPlanDropdownOpen(false);
+    modal.openModal();
   };
 
   const openEdit = (a: Area) => {
     setEditingId(a.id);
-    setShowCreate(true);
     setNombre(a.nombre);
     setOrden(a.orden);
     setPlanEstudio(a.plan_estudio);
@@ -83,6 +83,19 @@ export default function AreasPage() {
     setPlanSearch(p ? `${p.carrera_nombre} - ${p.codigo}` : "");
     setError("");
     setErrors({});
+    modal.openModal();
+  };
+
+  const closeModal = () => {
+    modal.closeModal();
+    setEditingId(null);
+    setNombre("");
+    setOrden(0);
+    setPlanEstudio(undefined);
+    setPlanSearch("");
+    setError("");
+    setErrors({});
+    setPlanDropdownOpen(false);
   };
 
   const validate = (): boolean => {
@@ -104,12 +117,7 @@ export default function AreasPage() {
       } else {
         await apiClient.post("/areas/", payload);
       }
-      setEditingId(null);
-      setShowCreate(false);
-      setNombre("");
-      setOrden(0);
-      setPlanEstudio(undefined);
-      setPlanSearch("");
+      closeModal();
       refetch();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: Record<string, string | string[]> } };
@@ -163,94 +171,6 @@ export default function AreasPage() {
         </div>
 
         <div className="p-6">
-          {(editingId !== null || showCreate) && (
-            <div className="mb-6 p-4 border rounded-lg border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-              {error && (
-                <div className="mb-3 rounded-lg bg-error-50 border border-error-200 px-4 py-3 text-sm text-error-700 dark:bg-error-500/10 dark:border-error-500/20 dark:text-error-400">
-                  {error}
-                </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div ref={planRef} className="relative">
-                  <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Plan de Estudio</label>
-                  <input
-                    type="text"
-                    placeholder="Buscá un plan..."
-                    value={planSearch}
-                    onChange={(e) => {
-                      setPlanSearch(e.target.value);
-                      setPlanEstudio(undefined);
-                      setPlanDropdownOpen(true);
-                    }}
-                    onFocus={() => setPlanDropdownOpen(true)}
-                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400 ${
-                      errors.plan_estudio ? "border-error-500" : "border-gray-200 dark:border-gray-700"
-                    }`}
-                  />
-                  {planDropdownOpen && (
-                    <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                      {planFiltered.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-400">Sin resultados</div>
-                      ) : (
-                        planFiltered.map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                              planEstudio === p.id
-                                ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
-                                : "text-gray-800 dark:text-white/90"
-                            }`}
-                            onClick={() => {
-                              setPlanEstudio(p.id);
-                              setPlanSearch(`${p.carrera_nombre} - ${p.codigo}`);
-                              setPlanDropdownOpen(false);
-                            }}
-                          >
-                            {p.carrera_nombre} - {p.codigo}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                  {errors.plan_estudio && <p className="mt-1 text-xs text-error-500">{errors.plan_estudio}</p>}
-                </div>
-                <div>
-                  <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Nombre</label>
-                  <input
-                    type="text"
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                    placeholder="ej: Ciencias Sociales"
-                    className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400"
-                  />
-                  {errors.nombre && <p className="mt-1 text-xs text-error-500">{errors.nombre}</p>}
-                </div>
-                <div>
-                  <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Orden</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={orden}
-                    onChange={(e) => setOrden(Number(e.target.value) || 0)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                    placeholder="0"
-                    className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-3 mt-4">
-                <Button size="sm" onClick={handleSave} disabled={saving || !nombre.trim()}>
-                  {saving ? "Guardando..." : editingId ? "Guardar" : "Crear"}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setEditingId(null); setShowCreate(false); setNombre(""); setOrden(0); setPlanEstudio(undefined); setPlanSearch(""); setError(""); setErrors({}); }}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          )}
-
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
               <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -292,6 +212,113 @@ export default function AreasPage() {
           </div>
         </div>
       </div>
+
+      <Modal isOpen={modal.isOpen} onClose={closeModal} className="max-w-[500px] m-4">
+        <div className="no-scrollbar relative w-full max-w-[500px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
+          <div className="px-2 pr-14">
+            <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              {editingId ? "Editar Área" : "Agregar Área"}
+            </h4>
+            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
+              {editingId ? "Modificá los datos del área curricular" : "Completá los datos para registrar un área curricular"}
+            </p>
+          </div>
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleSave(); }}
+            className="flex flex-col"
+          >
+            <div className="px-2 pb-3 space-y-5">
+              {error && (
+                <div className="rounded-lg bg-error-50 border border-error-200 px-4 py-3 text-sm text-error-700 dark:bg-error-500/10 dark:border-error-500/20 dark:text-error-400">
+                  {error}
+                </div>
+              )}
+
+              <div ref={planRef} className="relative">
+                <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Plan de Estudio</label>
+                <input
+                  type="text"
+                  placeholder="Buscá un plan..."
+                  value={planSearch}
+                  onChange={(e) => {
+                    setPlanSearch(e.target.value);
+                    setPlanEstudio(undefined);
+                    setPlanDropdownOpen(true);
+                  }}
+                  onFocus={() => setPlanDropdownOpen(true)}
+                  className={`w-full px-3 py-2 text-sm border rounded-lg bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400 ${
+                    errors.plan_estudio ? "border-error-500" : "border-gray-200 dark:border-gray-700"
+                  }`}
+                />
+                {planDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    {planFiltered.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-gray-400">Sin resultados</div>
+                    ) : (
+                      planFiltered.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                            planEstudio === p.id
+                              ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                              : "text-gray-800 dark:text-white/90"
+                          }`}
+                          onClick={() => {
+                            setPlanEstudio(p.id);
+                            setPlanSearch(`${p.carrera_nombre} - ${p.codigo}`);
+                            setPlanDropdownOpen(false);
+                          }}
+                        >
+                          {p.carrera_nombre} - {p.codigo}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+                {errors.plan_estudio && <p className="mt-1 text-xs text-error-500">{errors.plan_estudio}</p>}
+              </div>
+
+              <div>
+                <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Nombre</label>
+                <input
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                  placeholder="ej: Ciencias Sociales"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400 ${
+                    errors.nombre ? "border-error-500" : "border-gray-200 dark:border-gray-700"
+                  }`}
+                />
+                {errors.nombre && <p className="mt-1 text-xs text-error-500">{errors.nombre}</p>}
+              </div>
+
+              <div>
+                <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Orden</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={orden}
+                  onChange={(e) => setOrden(Number(e.target.value) || 0)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                  placeholder="0"
+                  className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-2 mt-6">
+              <Button size="sm" variant="outline" onClick={closeModal}>
+                Cancelar
+              </Button>
+              <Button size="sm" disabled={saving || !nombre.trim()}>
+                {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear área"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} className="max-w-[400px] m-4">
         <div className="no-scrollbar relative w-full max-w-[400px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">

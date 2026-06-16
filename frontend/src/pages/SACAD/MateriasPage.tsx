@@ -362,13 +362,13 @@ export default function MateriasPage() {
         </div>
       </div>
 
-      <Modal isOpen={modal.isOpen} onClose={modal.closeModal} className="max-w-[600px] m-4">
-        <div className="no-scrollbar relative w-full max-w-[600px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
-          <div className="px-2 pr-14">
+      <Modal isOpen={modal.isOpen} onClose={modal.closeModal} className="max-w-[90vw] my-8">
+        <div className="px-6 lg:px-10 py-6 lg:py-10">
+          <div className="mb-6">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
               {editingId ? "Editar Materia" : "Agregar Materia"}
             </h4>
-            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {editingId ? "Modificá los datos de la materia" : "Completá los datos para registrar una nueva materia"}
             </p>
           </div>
@@ -376,35 +376,34 @@ export default function MateriasPage() {
             onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
             className="flex flex-col"
           >
-            <div className="px-2 pb-3 space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="px-2 pb-3 space-y-5 max-h-[65vh] overflow-y-auto">
               {formError && (
                 <div className="rounded-lg bg-error-50 border border-error-200 px-4 py-3 text-sm text-error-700 dark:bg-error-500/10 dark:border-error-500/20 dark:text-error-400">
                   {formError}
                 </div>
               )}
 
-              <div>
-                <Label htmlFor="plan_estudio">Plan de Estudio</Label>
-                <select
-                  id="plan_estudio"
-                  value={form.plan_estudio}
-                  onChange={(e) => setForm({ ...form, plan_estudio: Number(e.target.value) })}
-                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-                >
-                  <option value={0}>Seleccionar plan...</option>
-                  {planes.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.carrera_nombre} - {p.codigo}
-                    </option>
-                  ))}
-                </select>
-                {errors.plan_estudio && (
-                  <p className="mt-1 text-xs text-error-500">{errors.plan_estudio}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="col-span-1">
+                  <Label htmlFor="plan_estudio">Plan de Estudio</Label>
+                  <select
+                    id="plan_estudio"
+                    value={form.plan_estudio}
+                    onChange={(e) => setForm({ ...form, plan_estudio: Number(e.target.value) })}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                  >
+                    <option value={0}>Seleccionar plan...</option>
+                    {planes.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.carrera_nombre} - {p.codigo}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.plan_estudio && (
+                    <p className="mt-1 text-xs text-error-500">{errors.plan_estudio}</p>
+                  )}
+                </div>
+                <div className="col-span-1">
                   <Label htmlFor="codigo">Código</Label>
                   <Input
                     id="codigo"
@@ -415,7 +414,7 @@ export default function MateriasPage() {
                   />
                   {errors.codigo && <p className="mt-1 text-xs text-error-500">{errors.codigo}</p>}
                 </div>
-                <div>
+                <div className="col-span-2">
                   <Label htmlFor="nombre">Nombre</Label>
                   <Input
                     id="nombre"
@@ -428,8 +427,8 @@ export default function MateriasPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
+              <div className="grid grid-cols-5 gap-4">
+                <div className="col-span-1">
                   <Label htmlFor="año">Año</Label>
                   <Input
                     id="año"
@@ -440,7 +439,7 @@ export default function MateriasPage() {
                     onChange={(e) => setForm({ ...form, año: Number(e.target.value) })}
                   />
                 </div>
-                <div>
+                <div className="col-span-1">
                   <Label htmlFor="cuatrimestre">Cuatrimestre</Label>
                   <select
                     id="cuatrimestre"
@@ -453,19 +452,16 @@ export default function MateriasPage() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <Label htmlFor="periodo">Período (original)</Label>
+                <div className="col-span-1">
+                  <Label htmlFor="periodo">Período</Label>
                   <Input
                     id="periodo"
-                    placeholder="Ej: B1/1C, 1C"
+                    placeholder="Ej: B1/1C"
                     value={form.periodo}
                     onChange={(e) => setForm({ ...form, periodo: e.target.value })}
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
+                <div className="col-span-1">
                   <Label htmlFor="creditos">Créditos</Label>
                   <Input
                     id="creditos"
@@ -475,6 +471,64 @@ export default function MateriasPage() {
                     onChange={(e) => setForm({ ...form, creditos: e.target.value })}
                   />
                 </div>
+                <div className="col-span-1">
+                  <Label htmlFor="tipo-search">Tipo</Label>
+                  <div ref={tipoRef} className="relative">
+                    <input
+                      id="tipo-search"
+                      type="text"
+                      placeholder="Buscar tipo..."
+                      value={tipoSearch}
+                      onFocus={() => setTipoOpen(true)}
+                      onChange={(e) => {
+                        setTipoSearch(e.target.value);
+                        setTipoOpen(true);
+                        setForm({ ...form, tipo: 0 });
+                      }}
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                    />
+                    {tipoOpen && (
+                      <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto">
+                        {tiposFiltrados.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-400">Sin resultados</div>
+                        ) : (
+                          tiposFiltrados.map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className={`w-full px-4 py-2.5 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                                form.tipo === t.id
+                                  ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                                  : "text-gray-800 dark:text-white/90"
+                              }`}
+                              onClick={() => {
+                                setForm({ ...form, tipo: t.id });
+                                setTipoSearch(t.nombre);
+                                setTipoOpen(false);
+                              }}
+                            >
+                              <span className="capitalize">{t.nombre}</span>
+                              {!t.activo && (
+                                <span className="ml-2 text-xs text-gray-400">(inactivo)</span>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                    {selectedTipo && !tipoOpen && (
+                      <p className="mt-1 text-xs text-gray-400 capitalize">
+                        Seleccionado: {selectedTipo.nombre}
+                      </p>
+                    )}
+                    {errors.tipo && (
+                      <p className="mt-1 text-xs text-error-500">{errors.tipo}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="carga_horaria_semanal">Horas Semanales</Label>
                   <Input
@@ -503,60 +557,6 @@ export default function MateriasPage() {
                     <p className="mt-1 text-xs text-error-500">{errors.carga_horaria_total}</p>
                   )}
                 </div>
-              </div>
-
-              <div ref={tipoRef} className="relative">
-                <Label htmlFor="tipo-search">Tipo</Label>
-                <input
-                  id="tipo-search"
-                  type="text"
-                  placeholder="Buscar tipo..."
-                  value={tipoSearch}
-                  onFocus={() => setTipoOpen(true)}
-                  onChange={(e) => {
-                    setTipoSearch(e.target.value);
-                    setTipoOpen(true);
-                    setForm({ ...form, tipo: 0 });
-                  }}
-                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-                />
-                {tipoOpen && (
-                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto">
-                    {tiposFiltrados.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-gray-400">Sin resultados</div>
-                    ) : (
-                      tiposFiltrados.map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          className={`w-full px-4 py-2.5 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                            form.tipo === t.id
-                              ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
-                              : "text-gray-800 dark:text-white/90"
-                          }`}
-                          onClick={() => {
-                            setForm({ ...form, tipo: t.id });
-                            setTipoSearch(t.nombre);
-                            setTipoOpen(false);
-                          }}
-                        >
-                          <span className="capitalize">{t.nombre}</span>
-                          {!t.activo && (
-                            <span className="ml-2 text-xs text-gray-400">(inactivo)</span>
-                          )}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-                {selectedTipo && !tipoOpen && (
-                  <p className="mt-1 text-xs text-gray-400 capitalize">
-                    Seleccionado: {selectedTipo.nombre}
-                  </p>
-                )}
-                {errors.tipo && (
-                  <p className="mt-1 text-xs text-error-500">{errors.tipo}</p>
-                )}
               </div>
 
               <div>
