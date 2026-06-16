@@ -251,10 +251,9 @@ sacad/
 - **Serializers**: List serializers separados con counts via `SerializerMethodField`
 - **Filtros**: `django-filters` FilterSets con `DjangoFilterBackend`
 - **Voseo**: Todos los mensajes de error usan "vos" (ej: "Completá", "seleccioná", "tenés"). No usar "tú" ni "usted".
-- **seed_*.py**: Archivos en `backend/sacad/apps/academica/management/commands/seed_*.py` están en `.gitignore`. Archivos en `backend/` (raíz) que coincidan con `seed*.py` están en commit actual pero NO están en `.gitignore`.
-- **`seed_data.py`** (force-trackeado): `backend/sacad/apps/academica/management/commands/seed_data.py` — comando de gestión idempotente (`get_or_create`), crea superuser + facultad + sedes + carrera + título intermedio + plan + tipo materia + áreas + materias. Este archivo fue forzado con `git add -f` para ignorar el `.gitignore` de seed_*.py.
-- **DB actual**: Flusheada + migrada + superuser `admin@sacad.edu` / `admin123` (sin otros datos). Recargar con `docker compose exec backend python manage.py seed_data`.
 - **No necesitás makemigrations**: las migraciones actuales (0001 a 0004) están en el repo. El entrypoint `makemigrations --noinput` solo se fija si hay cambios nuevos. Hoy no hay cambios pendientes.
+- **No hay seed data**: los seeders fueron eliminados. La DB está vacía (flush). Para probar hay que cargar datos manualmente desde el frontend.
+- **seed*.py están gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` no se trackea.
 
 ## Backend — Gaps conocidos
 
@@ -302,12 +301,8 @@ sacad/
 - Eliminar correlativa via `DELETE /correlatividades/{id}/`
 - Permisos: solo `EsDirectorCarrera`
 
-### 2. Seed data disponible
-- `backend/sacad/apps/academica/management/commands/seed_data.py` — comando idempotente (`get_or_create`). Para ejecutar:
-  ```bash
-  docker compose exec backend python manage.py seed_data
-  ```
-- Carga: superuser `admin@sacad.edu` / `admin123`, facultad "FCE", sede "Mendoza", carrera "Contador Público", plan 2026, 1 tipo materia, 8 áreas, 35 materias.
+### 2. No hay seed data
+- Los seeders fueron eliminados del repositorio. La DB está vacía (flush). Para probar hay que cargar datos manualmente desde el frontend.
 
 ### 3. Plan 2026 — Códigos
 | Año | Período | Códigos |
@@ -340,9 +335,6 @@ make dev-frontend # cd frontend && npm run dev
 # Reconstruir frontend tras cambios
 docker compose build frontend && docker compose up -d frontend
 
-# Recargar seed data
-docker compose exec backend python manage.py seed_data
-
 # Shell de Django
 docker compose exec backend python manage.py shell
 ```
@@ -353,5 +345,5 @@ docker compose exec backend python manage.py shell
 2. **Equivalencias engine**: BFS con `issubset()` para N:1. Soporta 1:1, 1:N, N:1. No soporta cascada multi-hop (solo single-hop, la BFS se usa para encontrar caminos, no para transitividad múltiple de equivalencias).
 3. **No usar ProtectedError**: en ningún view. Siempre `Response({"detail": mensaje}, 409)`.
 4. **Modal pattern**: `max-w-[...]` en className (no `!w-[...]`), contentClasses tiene `w-full` fijo. Los botones de formulario siempre van al fondo (flex justify-end), nunca en medio de los campos.
-5. **Seed scripts gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` está en `.gitignore`. Si se quiere forzar tracking, usar `git add -f`. El comando actual forzado es `seed_data.py`.
-6. **DB actualmente limpia**: solo superuser + seed_data. No hay datos de Plan 2019 cargados. Los scripts `seed_all.py` y `seed_plan2019.py` existen localmente pero están gitignored y no se usan.
+5. **Seed scripts gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` está en `.gitignore`. El comando `seed_data.py` fue eliminado del repositorio.
+6. **DB actualmente limpia**: flusheada. No hay datos cargados. Hay que cargarlos manualmente desde el frontend.

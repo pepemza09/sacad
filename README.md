@@ -25,21 +25,13 @@ cp .env.example .env
 docker compose up -d
 ```
 
-### Cargar datos de prueba
+Una vez iniciado, creá un superuser:
 
-Una vez que los servicios estén levantados:
+No hay datos precargados. Creá un superuser manualmente:
 
 ```bash
-docker compose exec backend python manage.py seed_data
+docker compose exec backend python manage.py createsuperuser
 ```
-
-Esto crea: superuser, facultad "FCE", sede "Mendoza", carrera "Contador Público", plan 2026, 8 áreas curriculares, 35 materias.
-
-### Credenciales por defecto
-
-| Email | Contraseña | Rol |
-|-------|-----------|-----|
-| `admin@sacad.edu` | `admin123` | Superuser (todos los permisos) |
 
 ## Sidebar
 
@@ -132,12 +124,6 @@ make backup   # Backup de BD
 
 ```bash
 docker compose build frontend && docker compose up -d frontend
-```
-
-### Recargar datos de prueba
-
-```bash
-docker compose exec backend python manage.py seed_data
 ```
 
 ### Shell de Django
@@ -238,7 +224,7 @@ make backup
 | Situación | Riesgo | Solución |
 |-----------|--------|----------|
 | `docker compose down -v` | BORRA el volumen de PostgreSQL (pérdida total) | NO usar `-v` a menos que se quiera resetear |
-| `python manage.py flush` | Borra todos los datos pero mantiene estructura | Útil para recargar seed data desde cero |
+| `python manage.py flush` | Borra todos los datos pero mantiene estructura | Útil para resetear la base desde cero |
 | Migración con campo NOT NULL sin default en tabla existente | Falla con error | Agregar `null=True` primero o dar un default |
 | Renombrar un campo | Django no detecta el rename, crea campo nuevo + elimina viejo (pérdida de datos) | Hacer `migrate --empty` + `RenameField` manual |
 | Eliminar una tabla/modelo | Borra todos los datos permanentemente | Hacer backup antes de eliminar |
