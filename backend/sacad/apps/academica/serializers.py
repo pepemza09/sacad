@@ -155,6 +155,7 @@ class PlanEstudioListSerializer(serializers.ModelSerializer):
 
 class AreaSerializer(serializers.ModelSerializer):
     plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
+    carrera_nombre = serializers.CharField(source="plan_estudio.carrera.nombre", read_only=True)
     materias_count = serializers.SerializerMethodField()
 
     class Meta:

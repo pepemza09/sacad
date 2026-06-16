@@ -20,6 +20,7 @@ interface Area {
   orden: number;
   plan_estudio: number;
   plan_estudio_codigo: string;
+  carrera_nombre: string;
   materias_count: number;
 }
 
@@ -176,6 +177,7 @@ export default function AreasPage() {
               <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
                   <th className="px-4 py-3">Nombre</th>
+                  <th className="px-4 py-3">Carrera</th>
                   <th className="px-4 py-3">Plan de Estudio</th>
                   <th className="px-4 py-3">Orden</th>
                   <th className="px-4 py-3">Materias</th>
@@ -184,13 +186,14 @@ export default function AreasPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center">Cargando...</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center">Cargando...</td></tr>
                 ) : items.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No hay áreas registradas.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No hay áreas registradas.</td></tr>
                 ) : (
                   items.map((a) => (
                     <tr key={a.id} className="border-b border-gray-200 dark:border-gray-700">
                       <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">{a.nombre}</td>
+                      <td className="px-4 py-3">{a.carrera_nombre}</td>
                       <td className="px-4 py-3">{a.plan_estudio_codigo}</td>
                       <td className="px-4 py-3">{a.orden}</td>
                       <td className="px-4 py-3">{a.materias_count}</td>
