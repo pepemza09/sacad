@@ -1,0 +1,57 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check backend syntax
+        run: |
+          python -m py_compile backend/sacad/settings/base.py
+          python -m py_compile backend/sacad/urls.py
+      - name: Check frontend build
+        run: |
+          cd frontend
+          npm ci --ignore-scripts
+          npm run build
+      - name: Validate Docker Compose
+        run: |
+          docker compose config -q
+          docker compose -f docker-compose.prod.yml config -q
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Oracle Cloud via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.ORACLE_PROJECT_DIR }}
+
+            echo "=== Backup DB ==="
+            ./scripts/backup.sh
+
+            echo "=== Pull latest code ==="
+            git pull origin main
+
+            echo "=== Rebuild and restart ==="
+            docker compose -f docker-compose.prod.yml build --no-cache
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "=== Clean old images ==="
+            docker image prune -f
+
+            echo "=== Deploy complete ==="
