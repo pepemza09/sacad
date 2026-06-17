@@ -21,38 +21,30 @@ DATABASES["default"]["OPTIONS"] = {
     "options": "-c search_path=public",
 }
 
-# Cache con Redis
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": config("REDIS_URL", default="redis://redis:6379/0"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_CLASS": "redis.BlockingConnectionPool",
-            "CONNECTION_POOL_CLASS_KWARGS": {
-                "max_connections": 50,
-                "timeout": 20,
+# Cache con Redis (opcional, si REDIS_URL está configurado)
+REDIS_URL = config("REDIS_URL", default=None)
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_CLASS": "redis.BlockingConnectionPool",
+                "CONNECTION_POOL_CLASS_KWARGS": {
+                    "max_connections": 50,
+                    "timeout": 20,
+                },
+                "MAX_CONNECTIONS": 1000,
+                "PICKLE_VERSION": -1,
             },
-            "MAX_CONNECTIONS": 1000,
-            "PICKLE_VERSION": -1,
-        },
-        "KEY_PREFIX": "sacad",
+            "KEY_PREFIX": "sacad",
+        }
     }
-}
 
-# Cache REST Framework
-REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
-    "rest_framework.throttling.AnonRateThrottle",
-    "rest_framework.throttling.UserRateThrottle",
-]
-REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-    "anon": "100/hour",
-    "user": "1000/hour",
-}
-
-# Session backend en cache
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
+    # Session backend en cache (solo si hay Redis)
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
 
 # Compression
 MIDDLEWARE.insert(0, "django.middleware.gzip.GZipMiddleware")
