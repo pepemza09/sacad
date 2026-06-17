@@ -14,11 +14,10 @@ SECURE_HSTS_PRELOAD = True
 STATIC_ROOT = "/app/staticfiles"
 MEDIA_ROOT = "/app/media"
 
-# Connection pooling — usar pool en vez de persistent connections
-DATABASES["default"]["CONN_MAX_AGE"] = 0
+# Reutilizar conexiones a la DB (evita overhead de handshake por request)
+DATABASES["default"]["CONN_MAX_AGE"] = 60
 DATABASES["default"]["OPTIONS"] = {
     "options": "-c search_path=public",
-    "pool": True,
 }
 
 # Cache con Redis
