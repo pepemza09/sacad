@@ -14,8 +14,8 @@ SECURE_HSTS_PRELOAD = True
 STATIC_ROOT = "/app/staticfiles"
 MEDIA_ROOT = "/app/media"
 
-# Connection pooling — reutilizar conexiones a la DB
-DATABASES["default"]["CONN_MAX_AGE"] = config("DB_CONN_MAX_AGE", default=60, cast=int)
+# Connection pooling — usar pool en vez de persistent connections
+DATABASES["default"]["CONN_MAX_AGE"] = 0
 DATABASES["default"]["OPTIONS"] = {
     "options": "-c search_path=public",
     "pool": True,
