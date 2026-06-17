@@ -24,6 +24,8 @@ if [ "${CONFIRM}" != "s" ] && [ "${CONFIRM}" != "S" ]; then
   exit 0
 fi
 
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
+
 echo "Restaurando ${BACKUP_FILE} ..."
-docker compose exec -T db psql -U "${DB_USER}" -d "${DB_NAME}" < "${BACKUP_FILE}"
+docker compose -f "${COMPOSE_FILE}" exec -T db psql -U "${DB_USER}" -d "${DB_NAME}" < "${BACKUP_FILE}"
 echo "OK"

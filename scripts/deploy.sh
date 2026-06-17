@@ -10,7 +10,7 @@ echo ""
 
 # 1. Backup
 echo "[1/5] Respaldando base de datos..."
-./scripts/backup.sh
+COMPOSE_FILE=docker-compose.prod.yml ./scripts/backup.sh
 
 # 2. Pull latest code
 echo "[2/5] Actualizando código..."
