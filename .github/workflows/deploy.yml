@@ -34,8 +34,12 @@ jobs:
 
             echo "=== Rebuild and restart ==="
             docker compose -f docker-compose.prod.yml build
-            docker compose -f docker-compose.prod.yml down --remove-orphans
-            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans || {
+              echo "=== Force cleanup and retry ==="
+              docker rm -f sacad-backend-1 sacad-db-1 sacad-frontend-1 2>/dev/null || true
+              docker network rm sacad_default 2>/dev/null || true
+              docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
+            }
 
             echo "=== Clean old images ==="
             docker image prune -f
