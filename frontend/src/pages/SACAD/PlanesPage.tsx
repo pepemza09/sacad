@@ -11,6 +11,7 @@ import { PencilIcon, TrashBinIcon } from "../../icons";
 import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
+import { useMenuPermissions } from "../../hooks/useMenuPermissions";
 
 interface CarreraOption {
   id: number;
@@ -69,7 +70,8 @@ const emptyForm: PlanForm = {
 
 export default function PlanesPage() {
   const { user } = useAuth();
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico");
+  const { canWrite: canWriteMenu } = useMenuPermissions();
+  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || canWriteMenu("planes");
   const [filter, setFilter] = useState("");
   const params = new URLSearchParams();
   if (filter) params.set("search", filter);

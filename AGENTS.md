@@ -51,6 +51,7 @@ sacad/
 - **Backend serializers**: `backend/sacad/apps/academica/serializers.py`
 - **Backend views**: `backend/sacad/apps/academica/views.py`
 - **Backend permissions**: `backend/sacad/apps/academica/permissions.py`
+- **Backend usuarios permissions (tiene_permiso_menu)**: `backend/sacad/apps/usuarios/permissions.py`
 - **Backend filtros**: `backend/sacad/apps/academica/filters.py`
 - **Backend usuarios views**: `backend/sacad/apps/usuarios/views.py`
 - **Backend usuarios adapter (Google OAuth)**: `backend/sacad/apps/usuarios/adapters.py`
@@ -82,6 +83,7 @@ sacad/
 |--------|-------------|
 | `Profile` | user (OneToOne), foto, approval_status (pending/approved/rejected), approved_at, rejected_at, zoom_level (50-200) |
 | `AllowedDomain` | domain (unique), created_at |
+| `GroupMenuPermission` | group (FK->Group), menu_key (str), can_read, can_write | unique_together: (group, menu_key). 13 menús definidos en `GroupMenuPermission.MENU_KEYS`. |
 
 ### equivalencias
 
@@ -104,14 +106,20 @@ sacad/
 | `/token/` | POST | AllowAny | JWT pair |
 | `/token/refresh/` | POST | AllowAny | Refresh JWT |
 | `/token/verify/` | POST | AllowAny | Verify JWT |
-| `/users/` | GET | Staff | Lista usuarios |
-| `/users/<id>/groups/` | PATCH | Staff | Asignar grupos |
-| `/pending-users/` | GET | Staff | Usuarios pendientes |
-| `/approve-user/<id>/` | PATCH | Staff | Aprobar (auto-asigna Director Carrera) |
-| `/reject-user/<id>/` | PATCH | Staff | Rechazar |
-| `/allowed-domains/` | GET/POST | Staff | CRUD dominios |
-| `/allowed-domains/<id>/` | DELETE | Staff | Eliminar dominio |
-| `/groups/` | GET | Staff | Lista grupos |
+| `/users/` | GET | Staff / configuracion.usuarios read | Lista usuarios |
+| `/users/<id>/groups/` | PATCH | Staff / configuracion.usuarios write | Asignar grupos |
+| `/pending-users/` | GET | Staff / configuracion.usuarios read | Usuarios pendientes |
+| `/approve-user/<id>/` | PATCH | Staff / configuracion.usuarios write | Aprobar (auto-asigna Director Carrera) |
+| `/reject-user/<id>/` | PATCH | Staff / configuracion.usuarios write | Rechazar |
+| `/deactivate-user/<id>/` | PATCH | Staff / configuracion.usuarios write | Desactivar usuario |
+| `/allowed-domains/` | GET/POST | Staff / configuracion.dominios read/write | CRUD dominios |
+| `/allowed-domains/<id>/` | DELETE | Staff / configuracion.dominios write | Eliminar dominio |
+| `/groups/` | GET/POST | Staff / configuracion.roles read/write | Lista / crear grupos |
+| `/groups/rename/` | PATCH | Staff / configuracion.roles write | Renombrar grupo |
+| `/groups/<id>/` | DELETE | Staff / configuracion.roles write | Eliminar grupo |
+| `/groups/<id>/permissions/` | GET/PUT | Staff / configuracion.roles read/write | Permisos de menú del grupo |
+| `/groups/me/permissions/` | GET | Auth | Permisos del usuario actual |
+| `/groups/permissions/` | GET | Staff / configuracion.roles read | Todos los grupos con permisos |
 
 ### Académica (`/api/`)
 | Endpoint | ViewSet | Permiso lectura | Permiso escritura |
@@ -140,9 +148,11 @@ sacad/
 
 | Clase | Lógica | Aplica a |
 |-------|--------|----------|
-| `EsAdminUniversidad` | superuser OR group "Admin Universidad" | Facultad write |
-| `EsSecretarioAcademico` | superuser OR groups ["Admin Universidad", "Secretario Académico"] | Sede, Carrera, Plan, TipoMateria, Area write |
-| `EsDirectorCarrera` | superuser OR groups ["Admin Universidad", "Secretario Académico", "Director Carrera"] | Materia, Correlatividad write |
+| `EsAdminUniversidad` | superuser OR group "Admin Universidad" OR `GroupMenuPermission("facultades", write)` | Facultad write |
+| `EsSecretarioAcademico` | superuser OR groups ["Admin Universidad", "Secretario Académico"] OR `GroupMenuPermission("sedes"/"carreras"/etc, write)` | Sede, Carrera, Plan, TipoMateria, Area write |
+| `EsDirectorCarrera` | superuser OR groups ["Admin Universidad", "Secretario Académico", "Director Carrera"] OR `GroupMenuPermission("materias", write)` | Materia, Correlatividad write |
+
+Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican `is_staff OR tiene_permiso_menu(user, menu_key, require_write)` en lugar de solo `is_staff`. El helper `tiene_permiso_menu()` está en `usuarios/permissions.py`.
 
 ## Backend — Serializers
 
@@ -208,6 +218,7 @@ sacad/
 - **Refresh automático**: Response interceptor captura 401, refresca con `/auth/token/refresh/`
 - **Servicios**: `api/services.ts` → `academicaApi`, `equivalenciasApi`, `authApi`
 - **Páginas CRUD** llaman `apiClient` directamente para POST/PUT/DELETE (NO usan `academicaApi` desde services.ts)
+- **Permisos**: hook `useMenuPermissions()` expone `canRead(menuKey)` y `canWrite(menuKey)` basado en `GET /auth/groups/me/permissions/`
 
 ## Frontend — Auth Flow
 
@@ -238,7 +249,7 @@ sacad/
   - Campos de formulario con `<label>` + `<input>` + mensaje de error
   - Botones Cancelar + "Crear X" / "Guardar cambios" al fondo (flex justify-end)
   - Modal independiente para delete confirmation
-- **Permisos condicionales**: `canWrite = user?.is_superuser || user?.group_names?.includes("Rol")`
+- **Permisos condicionales**: `canWrite = user?.is_superuser || user?.group_names?.includes("Rol") || canWriteMenu("menuKey")` donde `canWriteMenu` viene de `useMenuPermissions()`
 - **Manejo de errores**: Catch axios error → mapear `response.data` a `FieldErrors`
 - **Modal crece con `max-w-[90vw]`** en lugar de `!w-[90vw]` para cascada correcta
 - **Busqueda de FK en modales**: dropdown con `useRef` + `handleClickOutside` + filtro local
@@ -291,6 +302,13 @@ sacad/
 - **seed_data command**: `backend/sacad/apps/academica/management/commands/seed_data.py`. Idempotente (get_or_create). Carga superuser, facultad, sedes, carrera, título intermedio, plan 2026, tipo materia, 8 áreas, 35 materias. Forzado en git con `git add -f`.
 - **AreasPage**: convertida de formulario inline a `<Modal>`, siguiendo el mismo patrón de PlanesPage (useModal, closeModal que resetea estado, botones al fondo).
 - **Sidebar**: agregado "Áreas" entre "Planes de Estudio" y "Materias". Ruta `/areas` en App.tsx entre `/planes` y `/materias`.
+- **GroupMenuPermission model**: modelo `GroupMenuPermission` con group (FK), menu_key (str con choices de 13 menús), can_read, can_write. unique_together (group, menu_key). Migración 0002.
+- **Backend permisos por menú**: todas las vistas de `usuarios/views.py` ahora verifican `tiene_permiso_menu()` (en `usuarios/permissions.py`) además de `is_staff`. Las permission classes de `academica/permissions.py` (`EsAdminUniversidad`, `EsSecretarioAcademico`, `EsDirectorCarrera`) también verifican `GroupMenuPermission`.
+- **EquivalenciaViewSet**: protegido para escritura con `tiene_permiso_menu("equivalencias", require_write=True)`.
+- **Frontend useMenuPermissions hook**: hook que expone `canRead(key)` y `canWrite(key)` desde `GET /auth/groups/me/permissions/`.
+- **Frontend AppSidebar**: filtrado por `canRead()` — solo muestra menús con permiso de lectura (o escritura, que implica lectura).
+- **Frontend pages**: las 11 páginas CRUD actualizadas para combinar `user?.group_names` con `canWriteMenu("menuKey")` en su lógica de `canWrite`.
+- **UserDropdown**: simplificado a solo "Mi Perfil" y "Cerrar Sesión".
 
 ## Próximas tareas lógicas
 
@@ -319,6 +337,12 @@ Para cursar tercer año → 100% 1er año aprobado + 4 espacios de 2do año.
 Para cursar cuarto año → 100% hasta 2do año aprobado + 4 espacios de 3er año.
 
 **Correlativas complejas:** `540207 Práctica Profesional` ← `530203 + 530205 + 530206 + 540201` (séxtuple). `540202 Control Estratégico` ← `530204 + 520208` (doble).
+
+### 5. Verificar permisos en producción
+- victor.costa@fce.uncu.edu.ar tiene `is_staff=False`, grupo "administrador", `can_write=True` en todos los menús.
+- Verificar que pueda crear/editar/eliminar en todos los módulos (facultades, sedes, carreras, planes, áreas, materias, equivalencias, tipos-materia, dominios, roles, usuarios).
+- Verificar que el sidebar muestre todos los subitems de Académica (posible problema de expansión).
+- Verificar que un usuario sin permisos no pueda escribir ni vea menús restringidos.
 
 ## Comandos útiles
 
@@ -379,3 +403,6 @@ Si una migración falla por conflictos de datos (ej: campo NOT NULL sin default 
 4. **Modal pattern**: `max-w-[...]` en className (no `!w-[...]`), contentClasses tiene `w-full` fijo. Los botones de formulario siempre van al fondo (flex justify-end), nunca en medio de los campos.
 5. **Seed scripts gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` está en `.gitignore`. El comando `seed_data.py` fue eliminado del repositorio.
 6. **DB actualmente limpia**: flusheada. No hay datos cargados. Hay que cargarlos manualmente desde el frontend.
+7. **Permisos por menú**: los grupos ahora tienen `GroupMenuPermission` con permisos de lectura/escritura por menú. La lógica de autorización backend para vistas normales es: `is_staff OR tiene_permiso_menu()`. Para ViewSets de académica: `superuser OR group_name OR GroupMenuPermission`. En frontend: `useMenuPermissions().canWrite("menuKey")` combinado con `user?.group_names`.
+8. **UserDropdown**: solo muestra "Mi Perfil" y "Cerrar Sesión". No hay notificaciones reales implementadas.
+9. **canWrite en frontend**: debe incluir `canWriteMenu("menuKey")` además de los chequeos de grupo. El hook `useMenuPermissions` necesita que el endpoint `/auth/groups/me/permissions/` responda correctamente (requiere tener GroupMenuPermission creados para el grupo del usuario).

@@ -1,11 +1,12 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from .models import Equivalencia
 from .serializers import EquivalenciaSerializer
 from .engine import EquivalenciasEngine
+from sacad.apps.usuarios.permissions import tiene_permiso_menu
 
 
 class EquivalenciaViewSet(viewsets.ModelViewSet):
@@ -15,6 +16,15 @@ class EquivalenciaViewSet(viewsets.ModelViewSet):
     serializer_class = EquivalenciaSerializer
     search_fields = ["resolucion", "observaciones"]
     permission_classes = [IsAuthenticated]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.method not in SAFE_METHODS:
+            if not tiene_permiso_menu(request.user, "equivalencias", require_write=True):
+                self.permission_denied(
+                    request,
+                    message="No tenés permiso para modificar equivalencias.",
+                )
 
     def get_queryset(self):
         qs = super().get_queryset()

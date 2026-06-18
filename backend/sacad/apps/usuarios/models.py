@@ -1,6 +1,39 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
+
+
+MENU_KEYS = [
+    ("dashboard", "Dashboard"),
+    ("facultades", "Facultades"),
+    ("sedes", "Sedes"),
+    ("carreras", "Carreras"),
+    ("planes", "Planes de Estudio"),
+    ("areas", "Áreas"),
+    ("materias", "Materias"),
+    ("equivalencias", "Equivalencias"),
+    ("configuracion", "Configuración"),
+    ("configuracion.usuarios", "Config. - Autorización usuarios"),
+    ("configuracion.dominios", "Config. - Dominios permitidos"),
+    ("configuracion.roles", "Config. - Roles de usuarios"),
+    ("configuracion.tipos-materia", "Config. - Tipos de Materia"),
+]
+
+
+class GroupMenuPermission(models.Model):
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="menu_permissions")
+    menu_key = models.CharField(max_length=50, choices=MENU_KEYS)
+    can_read = models.BooleanField(default=False)
+    can_write = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("group", "menu_key")
+        verbose_name = "Permiso de menú"
+        verbose_name_plural = "Permisos de menú"
+
+    def __str__(self):
+        return f"{self.group.name} – {self.get_menu_key_display()} (R:{self.can_read} W:{self.can_write})"
 
 
 class Profile(models.Model):

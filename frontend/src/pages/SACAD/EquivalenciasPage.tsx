@@ -10,6 +10,7 @@ import { PencilIcon, TrashBinIcon } from "../../icons";
 import { equivalenciasApi } from "../../api/services";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
+import { useMenuPermissions } from "../../hooks/useMenuPermissions";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 
 interface MateriaOption {
@@ -186,11 +187,12 @@ export default function EquivalenciasPage() {
 
   const materias = materiasData?.results || [];
   const { user } = useAuth();
+  const { canWrite: canWriteMenu } = useMenuPermissions();
   const pageSize = 10;
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil((data?.results?.length || 0) / pageSize));
   const paginated = data?.results?.slice((page - 1) * pageSize, page * pageSize) || [];
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || user?.group_names?.includes("Director Carrera");
+  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || user?.group_names?.includes("Director Carrera") || canWriteMenu("equivalencias");
   const modal = useModal();
   const [form, setForm] = useState<EquivalenciaForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);

@@ -23,6 +23,11 @@ urlpatterns = [
     path("allowed-domains/", views.allowed_domains, name="allowed-domains"),
     path("allowed-domains/<int:domain_id>/", views.delete_allowed_domain, name="delete-allowed-domain"),
     path("groups/", views.groups_list, name="groups-list"),
+    path("groups/rename/", views.rename_group, name="rename-group"),
+    path("groups/permissions/", views.all_groups_with_permissions, name="groups-with-permissions"),
+    path("groups/<int:group_id>/", views.delete_group, name="delete-group"),
+    path("groups/<int:group_id>/permissions/", views.group_menu_permissions, name="group-menu-permissions"),
+    path("groups/me/permissions/", views.my_menu_permissions, name="my-menu-permissions"),
     path("users/<int:user_id>/groups/", views.update_user_groups, name="update-user-groups"),
     path("update-zoom/", views.update_zoom, name="update-zoom"),
 ]

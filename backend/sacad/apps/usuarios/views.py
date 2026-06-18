@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from .permissions import tiene_permiso_menu
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -10,8 +11,8 @@ from django.http import HttpResponseRedirect
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import Group
-from .models import Profile, AllowedDomain
-from .serializers import UserSerializer, ProfileSerializer, EmailTokenObtainSerializer, AllowedDomainSerializer
+from .models import Profile, AllowedDomain, GroupMenuPermission
+from .serializers import UserSerializer, ProfileSerializer, EmailTokenObtainSerializer, AllowedDomainSerializer, GroupMenuPermissionSerializer, GroupWithPermissionsSerializer
 
 User = get_user_model()
 
@@ -118,7 +119,7 @@ def google_complete(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def users_list(request):
-    if not request.user.is_staff:
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.usuarios")):
         return Response({"detail": "No tenés permiso para ver esta lista."}, status=status.HTTP_403_FORBIDDEN)
 
     status_filter = request.query_params.get("status")
@@ -149,7 +150,7 @@ def users_list(request):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def approve_user(request, user_id):
-    if not request.user.is_staff:
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.usuarios", require_write=True)):
         return Response({"detail": "No tenés permiso para aprobar usuarios."}, status=status.HTTP_403_FORBIDDEN)
     user = get_object_or_404(User, id=user_id)
     profile, _ = Profile.objects.get_or_create(user=user)
@@ -169,7 +170,7 @@ def approve_user(request, user_id):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def reject_user(request, user_id):
-    if not request.user.is_staff:
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.usuarios", require_write=True)):
         return Response({"detail": "No tenés permiso para rechazar usuarios."}, status=status.HTTP_403_FORBIDDEN)
     user = get_object_or_404(User, id=user_id)
     profile, _ = Profile.objects.get_or_create(user=user)
@@ -185,7 +186,7 @@ def reject_user(request, user_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def pending_users(request):
-    if not request.user.is_staff:
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.usuarios")):
         return Response({"detail": "No tenés permiso para ver esta lista."}, status=status.HTTP_403_FORBIDDEN)
     users = User.objects.filter(is_active=False).values("id", "email", "first_name", "last_name", "date_joined")
     return Response(list(users))
@@ -194,7 +195,8 @@ def pending_users(request):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def allowed_domains(request):
-    if not request.user.is_staff:
+    require_write = request.method == "POST"
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.dominios", require_write=require_write)):
         return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == "POST":
@@ -210,26 +212,63 @@ def allowed_domains(request):
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def delete_allowed_domain(request, domain_id):
-    if not request.user.is_staff:
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.dominios", require_write=True)):
         return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
     domain = get_object_or_404(AllowedDomain, id=domain_id)
     domain.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def groups_list(request):
-    if not request.user.is_staff:
+    require_write = request.method == "POST"
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.roles", require_write=require_write)):
         return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "POST":
+        name = request.data.get("name", "").strip()
+        if not name:
+            return Response({"detail": "El nombre del grupo es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+        if Group.objects.filter(name=name).exists():
+            return Response({"detail": "Ya existe un grupo con ese nombre."}, status=status.HTTP_409_CONFLICT)
+        group = Group.objects.create(name=name)
+        return Response({"id": group.id, "name": group.name}, status=status.HTTP_201_CREATED)
+
     groups = Group.objects.all().values("id", "name")
     return Response(list(groups))
 
 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
+def rename_group(request):
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.roles", require_write=True)):
+        return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
+    group = get_object_or_404(Group, id=request.data.get("id"))
+    name = request.data.get("name", "").strip()
+    if not name:
+        return Response({"detail": "El nombre es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+    if Group.objects.filter(name=name).exclude(id=group.id).exists():
+        return Response({"detail": "Ya existe un grupo con ese nombre."}, status=status.HTTP_409_CONFLICT)
+    group.name = name
+    group.save()
+    return Response({"id": group.id, "name": group.name})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_group(request, group_id):
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.roles", require_write=True)):
+        return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
+    group = get_object_or_404(Group, id=group_id)
+    group.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
 def update_user_groups(request, user_id):
-    if not request.user.is_staff:
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.roles", require_write=True)):
         return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
     target_user = get_object_or_404(User, id=user_id)
     group_names = request.data.get("groups", [])
@@ -240,3 +279,50 @@ def update_user_groups(request, user_id):
         "detail": f"Roles de {target_user.email} actualizados.",
         "groups": list(target_user.groups.values_list("name", flat=True)),
     })
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def group_menu_permissions(request, group_id):
+    require_write = request.method == "PUT"
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.roles", require_write=require_write)):
+        return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
+    group = get_object_or_404(Group, id=group_id)
+
+    if request.method == "PUT":
+        GroupMenuPermission.objects.filter(group=group).delete()
+        for item in request.data:
+            GroupMenuPermission.objects.create(
+                group=group,
+                menu_key=item["menu_key"],
+                can_read=item.get("can_read", False),
+                can_write=item.get("can_write", False),
+            )
+
+    permissions = GroupMenuPermission.objects.filter(group=group)
+    serializer = GroupMenuPermissionSerializer(permissions, many=True)
+    return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_menu_permissions(request):
+    user_groups = request.user.groups.all()
+    permissions = GroupMenuPermission.objects.filter(group__in=user_groups)
+    result: dict[str, dict[str, bool]] = {}
+    for p in permissions:
+        if p.menu_key not in result:
+            result[p.menu_key] = {"can_read": False, "can_write": False}
+        result[p.menu_key]["can_read"] = result[p.menu_key]["can_read"] or p.can_read
+        result[p.menu_key]["can_write"] = result[p.menu_key]["can_write"] or p.can_write
+    return Response(result)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def all_groups_with_permissions(request):
+    if not (request.user.is_staff or tiene_permiso_menu(request.user, "configuracion.roles")):
+        return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
+    groups = Group.objects.all().prefetch_related("menu_permissions")
+    serializer = GroupWithPermissionsSerializer(groups, many=True)
+    return Response(serializer.data)

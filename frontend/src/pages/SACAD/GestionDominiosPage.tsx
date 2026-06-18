@@ -7,6 +7,8 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import { PlusIcon, TrashBinIcon, AngleLeftIcon } from "../../icons";
 import { apiClient } from "../../api";
+import { useAuth } from "../../context/auth/AuthContext";
+import { useMenuPermissions } from "../../hooks/useMenuPermissions";
 
 interface DomainItem {
   id: number;
@@ -15,6 +17,9 @@ interface DomainItem {
 }
 
 export default function GestionDominiosPage() {
+  const { user } = useAuth();
+  const { canWrite: canWriteMenu } = useMenuPermissions();
+  const canWrite = user?.is_superuser || canWriteMenu("configuracion.dominios");
   const navigate = useNavigate();
   const { data: domains, loading, refetch } = useApiData<DomainItem[]>("/auth/allowed-domains/");
   const [newDomain, setNewDomain] = useState("");
@@ -93,10 +98,10 @@ export default function GestionDominiosPage() {
               placeholder="ej: fce.uncu.edu.ar"
               className="flex-1 px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400"
             />
-            <Button size="sm" onClick={handleAdd} disabled={adding || !newDomain.trim()}>
+            {canWrite && <Button size="sm" onClick={handleAdd} disabled={adding || !newDomain.trim()}>
               <PlusIcon className="w-4 h-4 mr-1" />
               Agregar
-            </Button>
+            </Button>}
           </div>
 
           <div className="overflow-x-auto">
@@ -132,12 +137,12 @@ export default function GestionDominiosPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="relative group inline-block">
-                          <button
+                          {canWrite && <button
                             onClick={() => setDeleteId(d.id)}
                             className="inline-flex items-center gap-1 rounded-lg bg-error-50 px-3 py-1.5 text-xs font-medium text-error-700 hover:bg-error-100 dark:bg-error-500/15 dark:text-error-500 dark:hover:bg-error-500/25"
                           >
                             <TrashBinIcon className="w-4 h-4" />
-                          </button>
+                          </button>}
                           <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 hidden group-hover:flex flex-col items-center z-50">
                             <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-800"></div>
                             <div className="bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">Eliminar</div>

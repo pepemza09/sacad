@@ -7,6 +7,8 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import { UserCheckIcon, CheckLineIcon, CloseLineIcon, AngleLeftIcon } from "../../icons";
 import { apiClient } from "../../api";
+import { useAuth } from "../../context/auth/AuthContext";
+import { useMenuPermissions } from "../../hooks/useMenuPermissions";
 
 interface UserItem {
   id: number;
@@ -47,6 +49,9 @@ function formatDate(d: string | null) {
 }
 
 export default function AutorizacionUsuariosPage() {
+  const { user } = useAuth();
+  const { canWrite: canWriteMenu } = useMenuPermissions();
+  const canWrite = user?.is_superuser || canWriteMenu("configuracion.usuarios");
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("all");
   const qs = statusFilter !== "all" ? `?status=${statusFilter}` : "";
@@ -176,7 +181,7 @@ export default function AutorizacionUsuariosPage() {
                     <td className="px-4 py-3">
                       {u.approval_status === "pending" && (
                         <div className="flex items-center gap-2">
-                          <button
+                          {canWrite && <button
                             onClick={() => handleApprove(u.id)}
                             disabled={actionLoading === u.id}
                             className="inline-flex items-center gap-1 rounded-lg bg-success-50 px-3 py-1.5 text-xs font-medium text-success-700 hover:bg-success-100 dark:bg-success-500/15 dark:text-success-500 dark:hover:bg-success-500/25 disabled:opacity-50"
@@ -184,8 +189,8 @@ export default function AutorizacionUsuariosPage() {
                           >
                             <CheckLineIcon className="w-4 h-4" />
                             Aprobar
-                          </button>
-                          <button
+                          </button>}
+                          {canWrite && <button
                             onClick={() => {
                               setRejectingId(u.id);
                               setRejectError("");
@@ -196,11 +201,11 @@ export default function AutorizacionUsuariosPage() {
                           >
                             <CloseLineIcon className="w-4 h-4" />
                             Rechazar
-                          </button>
+                          </button>}
                         </div>
                       )}
                       {u.approval_status === "approved" && !u.is_superuser && (
-                        <button
+                        canWrite && <button
                           onClick={() => {
                             setDeactivatingId(u.id);
                             setDeactivateError("");

@@ -7,6 +7,8 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import { TrashBinIcon, PencilIcon } from "../../icons";
 import { apiClient } from "../../api";
+import { useAuth } from "../../context/auth/AuthContext";
+import { useMenuPermissions } from "../../hooks/useMenuPermissions";
 
 interface PlanOption {
   id: number;
@@ -30,6 +32,9 @@ interface FieldErrors {
 }
 
 export default function AreasPage() {
+  const { user } = useAuth();
+  const { canWrite: canWriteMenu } = useMenuPermissions();
+  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || canWriteMenu("areas");
   const { data: areas, loading, refetch } = useApiData<{ results: Area[] }>("/areas/");
   const { data: planes } = useApiData<{ results: PlanOption[] }>("/planes/");
   const modal = useModal();
@@ -166,7 +171,7 @@ export default function AreasPage() {
               Áreas Curriculares
             </h3>
             <div className="flex items-center gap-3">
-              <Button size="sm" startIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="white"/><path d="M12 8v8M8 12h8" stroke="#465fff" strokeWidth={2} strokeLinecap="round"/></svg>} className="font-semibold" onClick={openCreate}>Agregar Área</Button>
+              {canWrite && <Button size="sm" startIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="white"/><path d="M12 8v8M8 12h8" stroke="#465fff" strokeWidth={2} strokeLinecap="round"/></svg>} className="font-semibold" onClick={openCreate}>Agregar Área</Button>}
             </div>
           </div>
         </div>
@@ -199,12 +204,12 @@ export default function AreasPage() {
                       <td className="px-4 py-3">{a.materias_count}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => openEdit(a)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
+                          {canWrite && <button onClick={() => openEdit(a)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
                             <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteId(a.id)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
+                          </button>}
+                          {canWrite && <button onClick={() => setDeleteId(a.id)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
                             <TrashBinIcon className="w-4 h-4" />
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>

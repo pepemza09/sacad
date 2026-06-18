@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
-from .models import Profile, AllowedDomain
+from django.contrib.auth.models import Group
+from .models import Profile, AllowedDomain, GroupMenuPermission, MENU_KEYS
 
 User = get_user_model()
 
@@ -61,3 +62,17 @@ class AllowedDomainSerializer(serializers.ModelSerializer):
         model = AllowedDomain
         fields = ["id", "domain", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+
+class GroupMenuPermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GroupMenuPermission
+        fields = ["id", "group", "menu_key", "can_read", "can_write"]
+
+
+class GroupWithPermissionsSerializer(serializers.ModelSerializer):
+    menu_permissions = GroupMenuPermissionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Group
+        fields = ["id", "name", "menu_permissions"]

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 
 // Assume these icons are imported from an icon library
@@ -12,6 +12,8 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/auth/AuthContext";
+import { useMenuPermissions } from "../hooks/useMenuPermissions";
 import SidebarWidget from "./SidebarWidget";
 
 type NavItem = {
@@ -51,10 +53,44 @@ const navItems: NavItem[] = [
   },
 ];
 
+const pathToMenuKey: Record<string, string> = {
+  "/": "dashboard",
+  "/facultades": "facultades",
+  "/sedes": "sedes",
+  "/carreras": "carreras",
+  "/planes": "planes",
+  "/areas": "areas",
+  "/materias": "materias",
+  "/equivalencias": "equivalencias",
+  "/configuracion": "configuracion",
+  "/configuracion/usuarios": "configuracion.usuarios",
+  "/configuracion/dominios": "configuracion.dominios",
+  "/configuracion/roles": "configuracion.roles",
+  "/configuracion/tipos-materia": "configuracion.tipos-materia",
+};
+
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const { canRead } = useMenuPermissions();
   const location = useLocation();
+
+  const visibleNavItems = useMemo(() => {
+    if (user?.is_superuser || !user) return navItems;
+    return navItems
+      .map((nav) => {
+        if (nav.subItems) {
+          const visible = nav.subItems.filter((s) => canRead(pathToMenuKey[s.path]));
+          if (visible.length === 0) return null;
+          return { ...nav, subItems: visible };
+        }
+        const key = nav.path ? pathToMenuKey[nav.path] : undefined;
+        if (key && !canRead(key)) return null;
+        return nav;
+      })
+      .filter(Boolean) as NavItem[];
+  }, [user, canRead]);
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -73,7 +109,7 @@ const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     let submenuMatched = false;
-    navItems.forEach((nav, index) => {
+    visibleNavItems.forEach((nav, index) => {
       if (nav.subItems) {
         nav.subItems.forEach((subItem) => {
           if (isActive(subItem.path)) {
@@ -87,7 +123,7 @@ const AppSidebar: React.FC = () => {
     if (!submenuMatched) {
       setOpenSubmenu(null);
     }
-  }, [location, isActive]);
+  }, [location, isActive, visibleNavItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
@@ -295,7 +331,7 @@ const AppSidebar: React.FC = () => {
                     <HorizontaLDots className="size-6" />
                   )}
                 </h2>
-                {renderMenuItems(navItems, "main")}
+                {renderMenuItems(visibleNavItems, "main")}
               </div>
 
             </div>

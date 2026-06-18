@@ -11,6 +11,7 @@ import { PencilIcon, TrashBinIcon } from "../../icons";
 import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
+import { useMenuPermissions } from "../../hooks/useMenuPermissions";
 
 interface FacultadOption {
   id: number;
@@ -61,7 +62,8 @@ const emptyForm: CarreraForm = {
 
 export default function CarrerasPage() {
   const { user } = useAuth();
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico");
+  const { canWrite: canWriteMenu } = useMenuPermissions();
+  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || canWriteMenu("carreras");
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("todas");
   const params = new URLSearchParams();
