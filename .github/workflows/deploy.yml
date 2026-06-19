@@ -32,12 +32,16 @@ jobs:
             echo "=== Pull latest code ==="
             git fetch origin main && git reset --hard origin/main || (git fetch --unshallow && git fetch origin main && git reset --hard origin/main)
 
+            echo "=== Force stop old containers ==="
+            docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
+
             echo "=== Rebuild and restart ==="
             docker compose -f docker-compose.prod.yml build
             docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans || {
-              echo "=== Force cleanup and retry ==="
-              docker rm -f sacad-backend-1 sacad-db-1 sacad-frontend-1 2>/dev/null || true
-              docker network rm sacad_default 2>/dev/null || true
+              echo "=== Deep cleanup and retry ==="
+              docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
+              docker container prune -f 2>/dev/null || true
+              docker network prune -f 2>/dev/null || true
               docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
             }
 
