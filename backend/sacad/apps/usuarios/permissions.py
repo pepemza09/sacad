@@ -11,9 +11,13 @@ def tiene_permiso_menu(user, menu_key, require_write=False):
     # Sin grupo asignado → sin permisos
     if not user_groups:
         return False
-    # Si los grupos del usuario no tienen NINGÚN permiso configurado,
-    # el sistema está "sin configurar" para ese usuario → unrestricted
-    if not GroupMenuPermission.objects.filter(group__in=user_groups).exists():
+    # Si los grupos del usuario no tienen ningún permiso positivo configurado
+    # (registros con can_read=True o can_write=True), el sistema está
+    # "sin configurar" para ese usuario → unrestricted
+    has_active = GroupMenuPermission.objects.filter(
+        group__in=user_groups,
+    ).exclude(can_read=False, can_write=False).exists()
+    if not has_active:
         return True
     field = "can_write" if require_write else "can_read"
     return GroupMenuPermission.objects.filter(

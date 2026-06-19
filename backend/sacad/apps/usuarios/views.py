@@ -311,15 +311,18 @@ def my_menu_permissions(request):
     # Sin grupo asignado → configured=true con permissions={} → frontend no muestra nada
     if not user_groups:
         return Response({"permissions": {}, "configured": True})
-    permissions = GroupMenuPermission.objects.filter(group__in=user_groups)
+    qs = GroupMenuPermission.objects.filter(group__in=user_groups)
+    # configured solo si hay al menos un permiso positivo (can_read o can_write en True)
+    has_active = qs.exclude(can_read=False, can_write=False).exists()
+    if not has_active:
+        return Response({"permissions": {}, "configured": False})
     result: dict[str, dict[str, bool]] = {}
-    for p in permissions:
+    for p in qs:
         if p.menu_key not in result:
             result[p.menu_key] = {"can_read": False, "can_write": False}
         result[p.menu_key]["can_read"] = result[p.menu_key]["can_read"] or p.can_read
         result[p.menu_key]["can_write"] = result[p.menu_key]["can_write"] or p.can_write
-    user_configured = permissions.exists()
-    return Response({"permissions": result, "configured": user_configured})
+    return Response({"permissions": result, "configured": True})
 
 
 @api_view(["GET"])
