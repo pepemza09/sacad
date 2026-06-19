@@ -53,10 +53,11 @@ interface Materia {
   cuatrimestre: string;
   creditos: number | null;
   periodo: string;
-  carga_horaria_semanal: number;
   carga_horaria_total: number;
   tipo: number;
   tipo_nombre: string;
+  area: number | null;
+  area_nombre: string | null;
   contenidos_minimos: string;
   plan_estudio: number;
   plan_estudio_codigo: string;
@@ -69,10 +70,10 @@ interface PlanOption {
   carrera_nombre: string;
 }
 
-interface TipoOption {
+interface AreaOption {
   id: number;
   nombre: string;
-  activo: boolean;
+  plan_estudio: number;
 }
 
 interface MateriaForm {
@@ -83,9 +84,8 @@ interface MateriaForm {
   cuatrimestre: string;
   creditos: string;
   periodo: string;
-  carga_horaria_semanal: string;
   carga_horaria_total: string;
-  tipo: number;
+  area: number | null;
   contenidos_minimos: string;
 }
 
@@ -101,9 +101,8 @@ const emptyForm: MateriaForm = {
   cuatrimestre: "1",
   creditos: "",
   periodo: "",
-  carga_horaria_semanal: "",
   carga_horaria_total: "",
-  tipo: 0,
+  area: null,
   contenidos_minimos: "",
 };
 
@@ -132,8 +131,8 @@ export default function MateriasPage() {
     "/planes/",
     []
   );
-  const { data: tiposData } = useApiData<{ results: TipoOption[] }>(
-    "/tipos-materia/",
+  const { data: areasData } = useApiData<{ results: AreaOption[] }>(
+    "/areas/",
     []
   );
 
@@ -146,14 +145,14 @@ export default function MateriasPage() {
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
-  const [tipoSearch, setTipoSearch] = useState("");
-  const [tipoOpen, setTipoOpen] = useState(false);
-  const tipoRef = useRef<HTMLDivElement>(null);
+  const [areaSearch, setAreaSearch] = useState("");
+  const [areaOpen, setAreaOpen] = useState(false);
+  const areaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (tipoRef.current && !tipoRef.current.contains(e.target as Node)) {
-        setTipoOpen(false);
+      if (areaRef.current && !areaRef.current.contains(e.target as Node)) {
+        setAreaOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
@@ -161,7 +160,19 @@ export default function MateriasPage() {
   }, []);
 
   const planes = planesData?.results || [];
-  const tipos = tiposData?.results || [];
+  const areas = areasData?.results || [];
+
+  const areasDelPlan = form.plan_estudio
+    ? areas.filter((a) => a.plan_estudio === form.plan_estudio)
+    : [];
+
+  const areaFiltered = areaSearch
+    ? areasDelPlan.filter((a) =>
+        a.nombre.toLowerCase().includes(areaSearch.toLowerCase())
+      )
+    : areasDelPlan;
+
+  const selectedArea = areas.find((a) => a.id === form.area);
 
   const openCreate = () => {
     setEditingId(null);
@@ -169,7 +180,7 @@ export default function MateriasPage() {
       ...emptyForm,
       plan_estudio: planes.length === 1 ? planes[0].id : 0,
     });
-    setTipoSearch("");
+    setAreaSearch("");
     setErrors({});
     setFormError("");
     modal.openModal();
@@ -187,13 +198,12 @@ export default function MateriasPage() {
       cuatrimestre: m.cuatrimestre,
       creditos: m.creditos?.toString() ?? "",
       periodo: m.periodo ?? "",
-      carga_horaria_semanal: m.carga_horaria_semanal.toString(),
       carga_horaria_total: m.carga_horaria_total.toString(),
-      tipo: m.tipo,
+      area: m.area,
       contenidos_minimos: m.contenidos_minimos ?? "",
     });
-    const t = tipos.find((t) => t.id === m.tipo);
-    setTipoSearch(t?.nombre ?? "");
+    const a = areas.find((a) => a.id === m.area);
+    setAreaSearch(a?.nombre ?? "");
     modal.openModal();
   };
 
@@ -208,8 +218,6 @@ export default function MateriasPage() {
     if (!form.codigo.trim()) newErrors.codigo = "Este campo es obligatorio.";
     if (!form.nombre.trim()) newErrors.nombre = "Este campo es obligatorio.";
     if (!form.carga_horaria_total.trim()) newErrors.carga_horaria_total = "Este campo es obligatorio.";
-    if (!form.carga_horaria_semanal.trim()) newErrors.carga_horaria_semanal = "Este campo es obligatorio.";
-    if (!form.tipo) newErrors.tipo = "Seleccioná un tipo.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -222,9 +230,9 @@ export default function MateriasPage() {
       const payload = {
         ...form,
         creditos: form.creditos ? Number(form.creditos) : null,
-        carga_horaria_semanal: Number(form.carga_horaria_semanal),
         carga_horaria_total: Number(form.carga_horaria_total),
         año: Number(form.año),
+        area: form.area || null,
       };
       if (editingId) {
         await apiClient.put(`/materias/${editingId}/`, payload);
@@ -268,12 +276,6 @@ export default function MateriasPage() {
     }
   };
 
-  const tiposFiltrados = tipos.filter((t) =>
-    t.nombre.toLowerCase().includes(tipoSearch.toLowerCase())
-  );
-
-  const selectedTipo = tipos.find((t) => t.id === form.tipo);
-
   return (
     <>
       <PageMeta title="SACAD - Materias" description="Gestión de Materias" />
@@ -307,8 +309,8 @@ export default function MateriasPage() {
                 <th className="px-4 py-3">Año</th>
                 <th className="px-4 py-3">Período</th>
                 <th className="px-4 py-3">Créditos</th>
-                <th className="px-4 py-3">Horas Sem.</th>
                 <th className="px-4 py-3">Horas Tot.</th>
+                <th className="px-4 py-3">Área</th>
                 <th className="px-4 py-3">Tipo</th>
                 {canWrite && <th className="px-4 py-3">Acciones</th>}
               </tr>
@@ -332,8 +334,8 @@ export default function MateriasPage() {
                     <td className="px-4 py-3">{m.año}</td>
                     <td className="px-4 py-3">{m.periodo || m.cuatrimestre}</td>
                     <td className="px-4 py-3 font-medium">{m.creditos ?? "-"}</td>
-                    <td className="px-4 py-3">{m.carga_horaria_semanal}</td>
                     <td className="px-4 py-3">{m.carga_horaria_total}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{m.area_nombre || "-"}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full capitalize ${getBadgeClass(m.tipo_nombre)}`}>
                         {m.tipo_nombre}
@@ -392,7 +394,10 @@ export default function MateriasPage() {
                   <select
                     id="plan_estudio"
                     value={form.plan_estudio}
-                    onChange={(e) => setForm({ ...form, plan_estudio: Number(e.target.value) })}
+                    onChange={(e) => {
+                      setForm({ ...form, plan_estudio: Number(e.target.value), area: null });
+                      setAreaSearch("");
+                    }}
                     className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
                   >
                     <option value={0}>Seleccionar plan...</option>
@@ -475,77 +480,62 @@ export default function MateriasPage() {
                   />
                 </div>
                 <div className="col-span-1">
-                  <Label htmlFor="tipo-search">Tipo</Label>
-                  <div ref={tipoRef} className="relative">
+                  <Label htmlFor="area-search">Área</Label>
+                  <div ref={areaRef} className="relative">
                     <input
-                      id="tipo-search"
+                      id="area-search"
                       type="text"
-                      placeholder="Buscar tipo..."
-                      value={tipoSearch}
-                      onFocus={() => setTipoOpen(true)}
+                      placeholder={form.plan_estudio ? "Buscá un área..." : "Primero seleccioná un plan"}
+                      value={areaSearch}
+                      onFocus={() => form.plan_estudio && setAreaOpen(true)}
                       onChange={(e) => {
-                        setTipoSearch(e.target.value);
-                        setTipoOpen(true);
-                        setForm({ ...form, tipo: 0 });
+                        setAreaSearch(e.target.value);
+                        setAreaOpen(true);
+                        setForm({ ...form, area: null });
                       }}
-                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                      disabled={!form.plan_estudio}
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:text-white/90"
                     />
-                    {tipoOpen && (
+                    {areaOpen && form.plan_estudio && (
                       <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto">
-                        {tiposFiltrados.length === 0 ? (
-                          <div className="px-4 py-3 text-sm text-gray-400">Sin resultados</div>
+                        {areaFiltered.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-400">
+                            {areasDelPlan.length === 0
+                              ? "Este plan no tiene áreas"
+                              : "Sin resultados"}
+                          </div>
                         ) : (
-                          tiposFiltrados.map((t) => (
+                          areaFiltered.map((a) => (
                             <button
-                              key={t.id}
+                              key={a.id}
                               type="button"
                               className={`w-full px-4 py-2.5 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                                form.tipo === t.id
+                                form.area === a.id
                                   ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
                                   : "text-gray-800 dark:text-white/90"
                               }`}
                               onClick={() => {
-                                setForm({ ...form, tipo: t.id });
-                                setTipoSearch(t.nombre);
-                                setTipoOpen(false);
+                                setForm({ ...form, area: a.id });
+                                setAreaSearch(a.nombre);
+                                setAreaOpen(false);
                               }}
                             >
-                              <span className="capitalize">{t.nombre}</span>
-                              {!t.activo && (
-                                <span className="ml-2 text-xs text-gray-400">(inactivo)</span>
-                              )}
+                              {a.nombre}
                             </button>
                           ))
                         )}
                       </div>
                     )}
-                    {selectedTipo && !tipoOpen && (
-                      <p className="mt-1 text-xs text-gray-400 capitalize">
-                        Seleccionado: {selectedTipo.nombre}
+                    {selectedArea && !areaOpen && (
+                      <p className="mt-1 text-xs text-gray-400">
+                        Seleccionado: {selectedArea.nombre}
                       </p>
-                    )}
-                    {errors.tipo && (
-                      <p className="mt-1 text-xs text-error-500">{errors.tipo}</p>
                     )}
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="carga_horaria_semanal">Horas Semanales</Label>
-                  <Input
-                    id="carga_horaria_semanal"
-                    type="number"
-                    min="0"
-                    value={form.carga_horaria_semanal}
-                    onChange={(e) => setForm({ ...form, carga_horaria_semanal: e.target.value })}
-                    error={!!errors.carga_horaria_semanal}
-                  />
-                  {errors.carga_horaria_semanal && (
-                    <p className="mt-1 text-xs text-error-500">{errors.carga_horaria_semanal}</p>
-                  )}
-                </div>
                 <div>
                   <Label htmlFor="carga_horaria_total">Horas Totales</Label>
                   <Input
