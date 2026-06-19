@@ -30,7 +30,7 @@ jobs:
             COMPOSE_FILE=docker-compose.prod.yml ./scripts/backup.sh
 
             echo "=== Pull latest code ==="
-            git pull origin main
+            git fetch origin main && git reset --hard origin/main || (git fetch --unshallow && git fetch origin main && git reset --hard origin/main)
 
             echo "=== Rebuild and restart ==="
             docker compose -f docker-compose.prod.yml build
