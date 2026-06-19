@@ -16,6 +16,7 @@ import { useMenuPermissions } from "../../hooks/useMenuPermissions";
 interface CarreraOption {
   id: number;
   nombre: string;
+  facultad_nombre: string;
 }
 
 interface TituloIntermedio {
@@ -107,9 +108,10 @@ export default function PlanesPage() {
 
   const carreraOptions = carreras?.results ?? [];
   const carreraFiltered = carreraSearch
-    ? carreraOptions.filter((c) =>
-        c.nombre.toLowerCase().includes(carreraSearch.toLowerCase())
-      )
+    ? carreraOptions.filter((c) => {
+        const q = carreraSearch.toLowerCase();
+        return c.nombre.toLowerCase().includes(q) || c.facultad_nombre.toLowerCase().includes(q);
+      })
     : carreraOptions;
 
   const openCreate = () => {
@@ -127,7 +129,7 @@ export default function PlanesPage() {
     setErrors({});
     setFormError("");
     const carrera = carreraOptions.find((c) => c.id === p.carrera);
-    setCarreraSearch(carrera?.nombre ?? "");
+    setCarreraSearch(carrera ? `${carrera.nombre} - ${carrera.facultad_nombre}` : "");
     setCarreraDropdownOpen(false);
     setForm({
       carrera: p.carrera,
@@ -408,11 +410,11 @@ export default function PlanesPage() {
                           }`}
                           onClick={() => {
                             setForm({ ...form, carrera: c.id });
-                            setCarreraSearch(c.nombre);
+                            setCarreraSearch(`${c.nombre} - ${c.facultad_nombre}`);
                             setCarreraDropdownOpen(false);
                           }}
                         >
-                          {c.nombre}
+                          {c.nombre} - {c.facultad_nombre}
                         </button>
                       ))
                     )}
