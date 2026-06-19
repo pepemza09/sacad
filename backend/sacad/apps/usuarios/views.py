@@ -308,6 +308,9 @@ def group_menu_permissions(request, group_id):
 @permission_classes([IsAuthenticated])
 def my_menu_permissions(request):
     user_groups = request.user.groups.all()
+    # Sin grupo asignado → configured=true con permissions={} → frontend no muestra nada
+    if not user_groups:
+        return Response({"permissions": {}, "configured": True})
     permissions = GroupMenuPermission.objects.filter(group__in=user_groups)
     result: dict[str, dict[str, bool]] = {}
     for p in permissions:

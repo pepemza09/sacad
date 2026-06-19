@@ -8,6 +8,9 @@ def tiene_permiso_menu(user, menu_key, require_write=False):
         return True
     from .models import GroupMenuPermission
     user_groups = user.groups.all()
+    # Sin grupo asignado → sin permisos
+    if not user_groups:
+        return False
     # Si los grupos del usuario no tienen NINGÚN permiso configurado,
     # el sistema está "sin configurar" para ese usuario → unrestricted
     if not GroupMenuPermission.objects.filter(group__in=user_groups).exists():
