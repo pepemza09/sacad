@@ -157,6 +157,8 @@ def approve_user(request, user_id):
     user.is_active = True
     if not user.groups.exists():
         role = Group.objects.filter(name="Director Carrera").first()
+        if not role:
+            role = Group.objects.first()
         if role:
             user.groups.add(role)
     user.save()
