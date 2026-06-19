@@ -5,19 +5,27 @@ interface MenuPermission {
   can_write: boolean;
 }
 
+interface PermissionsResponse {
+  permissions: Record<string, MenuPermission>;
+  configured: boolean;
+}
+
 export function useMenuPermissions() {
-  const { data, loading } = useApiData<Record<string, MenuPermission>>("/auth/groups/me/permissions/");
+  const { data, loading } = useApiData<PermissionsResponse>("/auth/groups/me/permissions/");
+
+  const configured = data?.configured ?? false;
+  const perms = data?.permissions ?? {};
 
   const canRead = (menuKey: string): boolean => {
-    if (!data) return false;
-    const p = data[menuKey];
+    if (!configured) return true;
+    const p = perms[menuKey];
     return p?.can_read || p?.can_write || false;
   };
 
   const canWrite = (menuKey: string): boolean => {
-    if (!data) return false;
-    return data[menuKey]?.can_write ?? false;
+    if (!configured) return true;
+    return perms[menuKey]?.can_write ?? false;
   };
 
-  return { permissions: data ?? {}, loading, canRead, canWrite };
+  return { permissions: perms, loading, canRead, canWrite };
 }
