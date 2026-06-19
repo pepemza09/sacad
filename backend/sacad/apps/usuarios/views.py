@@ -315,8 +315,8 @@ def my_menu_permissions(request):
             result[p.menu_key] = {"can_read": False, "can_write": False}
         result[p.menu_key]["can_read"] = result[p.menu_key]["can_read"] or p.can_read
         result[p.menu_key]["can_write"] = result[p.menu_key]["can_write"] or p.can_write
-    has_any_permission = GroupMenuPermission.objects.exists()
-    return Response({"permissions": result, "configured": has_any_permission})
+    user_configured = permissions.exists()
+    return Response({"permissions": result, "configured": user_configured})
 
 
 @api_view(["GET"])

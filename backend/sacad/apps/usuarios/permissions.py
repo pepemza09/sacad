@@ -7,9 +7,14 @@ def tiene_permiso_menu(user, menu_key, require_write=False):
     if user.is_superuser:
         return True
     from .models import GroupMenuPermission
+    user_groups = user.groups.all()
+    # Si los grupos del usuario no tienen NINGÚN permiso configurado,
+    # el sistema está "sin configurar" para ese usuario → unrestricted
+    if not GroupMenuPermission.objects.filter(group__in=user_groups).exists():
+        return True
     field = "can_write" if require_write else "can_read"
     return GroupMenuPermission.objects.filter(
-        group__in=user.groups.all(),
+        group__in=user_groups,
         menu_key=menu_key,
         **{field: True},
     ).exists()
