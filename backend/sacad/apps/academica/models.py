@@ -173,13 +173,13 @@ class Materia(models.Model):
         max_length=20, blank=True, default="",
         help_text="Período original (ej: B1/1C, 1C, B2/1C)"
     )
-    carga_horaria_semanal = models.PositiveIntegerField()
+    carga_horaria_semanal = models.PositiveIntegerField(null=True, blank=True)
     carga_horaria_total = models.PositiveIntegerField()
     area = models.ForeignKey(
         Area, on_delete=models.SET_NULL, null=True, blank=True, related_name="materias"
     )
     tipo = models.ForeignKey(
-        TipoMateria, on_delete=models.PROTECT, related_name="materias"
+        TipoMateria, on_delete=models.PROTECT, null=True, blank=True, related_name="materias"
     )
     contenidos_minimos = models.TextField(blank=True)
 
