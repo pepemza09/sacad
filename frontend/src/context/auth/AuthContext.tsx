@@ -13,6 +13,7 @@ export interface User {
   group_names: string[];
   foto?: string | null;
   zoom_level?: number;
+  needs_group?: boolean;
 }
 
 interface AuthContextType {

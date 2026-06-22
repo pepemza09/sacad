@@ -11,14 +11,20 @@ class UserSerializer(serializers.ModelSerializer):
     foto = serializers.ImageField(source="profile.foto", read_only=True)
     zoom_level = serializers.FloatField(source="profile.zoom_level", read_only=True)
     group_names = serializers.SerializerMethodField()
+    needs_group = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "is_staff", "groups", "group_names", "foto", "zoom_level", "is_superuser"]
-        read_only_fields = ["id", "is_staff", "group_names", "zoom_level", "is_superuser"]
+        fields = ["id", "username", "email", "first_name", "last_name", "is_staff", "groups", "group_names", "foto", "zoom_level", "is_superuser", "needs_group"]
+        read_only_fields = ["id", "is_staff", "group_names", "zoom_level", "is_superuser", "needs_group"]
 
     def get_group_names(self, obj):
         return list(obj.groups.values_list("name", flat=True))
+
+    def get_needs_group(self, obj):
+        if obj.is_superuser:
+            return False
+        return obj.groups.count() == 0
 
 
 class TokenResponseSerializer(serializers.Serializer):

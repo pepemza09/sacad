@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import AuthLayout from "./AuthPageLayout";
 import { Modal } from "../../components/ui/modal";
 
 export default function AuthPending() {
   const [isOpen] = useState(true);
+  const [searchParams] = useSearchParams();
+  const reason = searchParams.get("reason");
+
+  const isApprovedWithoutGroup = reason === "group";
 
   return (
     <>
@@ -32,14 +36,29 @@ export default function AuthPending() {
                 />
               </svg>
             </div>
-            <h4 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90">
-              Cuenta pendiente de aprobación
-            </h4>
-            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-              Te registraste con tu cuenta de Google correctamente. Sin embargo, un
-              administrador debe habilitar tu ingreso antes de que puedas acceder al
-              sistema. Cuando sea aprobado, vas a poder iniciar sesión con Google.
-            </p>
+            {isApprovedWithoutGroup ? (
+              <>
+                <h4 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90">
+                  Sin grupo asignado
+                </h4>
+                <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  Tu cuenta fue aprobada, pero todavía no tenés un grupo de acceso
+                  asignado. Solicitá a un administrador que te asigne un grupo para
+                  poder acceder al sistema.
+                </p>
+              </>
+            ) : (
+              <>
+                <h4 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90">
+                  Cuenta pendiente de aprobación
+                </h4>
+                <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  Te registraste con tu cuenta de Google correctamente. Sin embargo, un
+                  administrador debe habilitar tu ingreso antes de que puedas acceder al
+                  sistema. Cuando sea aprobado, vas a poder iniciar sesión con Google.
+                </p>
+              </>
+            )}
             <Link
               to="/signin"
               className="inline-flex items-center justify-center rounded-lg bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600 transition-colors"
