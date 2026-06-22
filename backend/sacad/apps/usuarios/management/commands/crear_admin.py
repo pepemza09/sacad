@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from sacad.apps.usuarios.models import Profile
 from sacad.apps.academica.models import TipoMateria
 
@@ -38,13 +37,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Admin {email} creado correctamente"))
         else:
             self.stdout.write(self.style.WARNING(f"Admin {email} actualizado"))
-
-        for group_name in ["Admin Universidad", "Secretario Académico", "Director Carrera"]:
-            group, _ = Group.objects.get_or_create(name=group_name)
-            user.groups.add(group)
-
-        user.save()
-        self.stdout.write(self.style.SUCCESS(f"Grupos asignados a {email}"))
 
         for tipo_nombre in ["obligatoria", "optativa", "electiva"]:
             TipoMateria.objects.get_or_create(nombre=tipo_nombre)

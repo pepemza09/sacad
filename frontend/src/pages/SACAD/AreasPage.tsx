@@ -34,7 +34,7 @@ interface FieldErrors {
 export default function AreasPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || canWriteMenu("areas");
+  const canWrite = user?.is_superuser || canWriteMenu("areas");
   const { data: areas, loading, refetch } = useApiData<{ results: Area[] }>("/areas/");
   const { data: planes } = useApiData<{ results: PlanOption[] }>("/planes/");
   const modal = useModal();

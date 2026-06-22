@@ -63,7 +63,7 @@ const emptyForm: CarreraForm = {
 export default function CarrerasPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || canWriteMenu("carreras");
+  const canWrite = user?.is_superuser || canWriteMenu("carreras");
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("todas");
   const params = new URLSearchParams();

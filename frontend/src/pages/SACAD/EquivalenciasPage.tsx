@@ -192,7 +192,7 @@ export default function EquivalenciasPage() {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil((data?.results?.length || 0) / pageSize));
   const paginated = data?.results?.slice((page - 1) * pageSize, page * pageSize) || [];
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || user?.group_names?.includes("Director Carrera") || canWriteMenu("equivalencias");
+  const canWrite = user?.is_superuser || canWriteMenu("equivalencias");
   const modal = useModal();
   const [form, setForm] = useState<EquivalenciaForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);

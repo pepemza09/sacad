@@ -72,7 +72,7 @@ const emptyForm: PlanForm = {
 export default function PlanesPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || canWriteMenu("planes");
+  const canWrite = user?.is_superuser || canWriteMenu("planes");
   const [filter, setFilter] = useState("");
   const params = new URLSearchParams();
   if (filter) params.set("search", filter);

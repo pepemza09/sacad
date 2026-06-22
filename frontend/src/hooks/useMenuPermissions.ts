@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useApiData } from "./useApiData";
 
 interface MenuPermission {
@@ -11,7 +12,12 @@ interface PermissionsResponse {
 }
 
 export function useMenuPermissions() {
-  const { data, loading } = useApiData<PermissionsResponse>("/auth/groups/me/permissions/");
+  const { data, loading, refetch } = useApiData<PermissionsResponse>("/auth/groups/me/permissions/");
+
+  useEffect(() => {
+    const interval = setInterval(refetch, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const configured = data?.configured ?? false;
   const perms = data?.permissions ?? {};
@@ -27,5 +33,5 @@ export function useMenuPermissions() {
     return perms[menuKey]?.can_write ?? false;
   };
 
-  return { permissions: perms, loading, canRead, canWrite };
+  return { permissions: perms, loading, canRead, canWrite, refetch };
 }

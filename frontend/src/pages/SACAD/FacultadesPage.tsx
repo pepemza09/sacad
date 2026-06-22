@@ -46,7 +46,7 @@ const emptyForm: FacultadForm = {
 export default function FacultadesPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || canWriteMenu("facultades");
+  const canWrite = user?.is_superuser || canWriteMenu("facultades");
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("todas");
   const params = new URLSearchParams();

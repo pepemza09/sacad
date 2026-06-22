@@ -8,8 +8,6 @@ class EsAdminUniversidad(permissions.BasePermission):
             return False
         if request.user.is_superuser:
             return True
-        if request.user.groups.filter(name="Admin Universidad").exists():
-            return True
         if request.method in permissions.SAFE_METHODS:
             return tiene_permiso_menu(request.user, "facultades", require_write=False)
         return tiene_permiso_menu(request.user, "facultades", require_write=True)
@@ -20,8 +18,6 @@ class EsSecretarioAcademico(permissions.BasePermission):
         if not request.user.is_authenticated:
             return False
         if request.user.is_superuser:
-            return True
-        if request.user.groups.filter(name__in=["Admin Universidad", "Secretario Académico"]).exists():
             return True
         if request.method in permissions.SAFE_METHODS:
             return (
@@ -46,8 +42,6 @@ class EsDirectorCarrera(permissions.BasePermission):
         if not request.user.is_authenticated:
             return False
         if request.user.is_superuser:
-            return True
-        if request.user.groups.filter(name__in=["Admin Universidad", "Secretario Académico", "Director Carrera"]).exists():
             return True
         if request.method in permissions.SAFE_METHODS:
             return tiene_permiso_menu(request.user, "materias", require_write=False)

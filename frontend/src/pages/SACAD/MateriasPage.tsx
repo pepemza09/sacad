@@ -115,11 +115,7 @@ const CUATRI_OPTIONS = [
 export default function MateriasPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
-  const canWrite = user?.is_superuser ||
-    user?.group_names?.includes("Admin Universidad") ||
-    user?.group_names?.includes("Secretario Académico") ||
-    user?.group_names?.includes("Director Carrera") ||
-    canWriteMenu("materias");
+  const canWrite = user?.is_superuser || canWriteMenu("materias");
 
   const [search, setSearch] = useState("");
   const qs = search ? `search=${encodeURIComponent(search)}` : "";

@@ -52,12 +52,6 @@ const MENU_ITEMS = [
   { key: "configuracion.tipos-materia", label: "Config. - Tipos de Materia" },
 ];
 
-const GROUP_COLORS: Record<string, string> = {
-  "Admin Universidad": "bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-500",
-  "Secretario Académico": "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-500",
-  "Director Carrera": "bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-500",
-};
-
 const defaultMenuPerms = (): MenuPerm[] =>
   MENU_ITEMS.map((m) => ({ menu_key: m.key, can_read: false, can_write: false }));
 
@@ -331,7 +325,7 @@ export default function GestionRolesPage() {
                             disabled={u.is_superuser}
                             className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                               (editedGroups[u.id] || []).includes(g.name)
-                                ? `${GROUP_COLORS[g.name] || "bg-brand-50 text-brand-700"} border-transparent`
+                                ? "bg-brand-50 text-brand-700 border-transparent"
                                 : "bg-transparent text-gray-400 border-gray-200 dark:border-gray-600 hover:border-gray-300"
                             }`}
                           >
@@ -382,7 +376,7 @@ export default function GestionRolesPage() {
               type="text"
               value={groupName}
               onChange={(e) => { setGroupName(e.target.value); setGroupError(""); }}
-              placeholder="Ej: Secretario Académico"
+              placeholder="Ej: Administrador"
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
             />
             {groupError && (

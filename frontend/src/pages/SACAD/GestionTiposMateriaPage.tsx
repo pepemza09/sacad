@@ -19,7 +19,7 @@ interface TipoMateria {
 export default function GestionTiposMateriaPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
-  const canWrite = user?.is_superuser || user?.group_names?.includes("Admin Universidad") || user?.group_names?.includes("Secretario Académico") || canWriteMenu("configuracion.tipos-materia");
+  const canWrite = user?.is_superuser || canWriteMenu("configuracion.tipos-materia");
   const navigate = useNavigate();
   const { data: tipos, loading, refetch } = useApiData<{ results: TipoMateria[] }>("/tipos-materia/");
   const [editingId, setEditingId] = useState<number | null>(null);
