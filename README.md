@@ -25,13 +25,13 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Una vez iniciado, creá un superuser:
-
-No hay datos precargados. Creá un superuser manualmente:
+Una vez iniciado, creá un superuser con el comando personalizado:
 
 ```bash
-docker compose exec backend python manage.py createsuperuser
+docker compose exec backend python manage.py createuser admin@ejemplo.com --password tu_password
 ```
+
+Iniciá sesión con ese superuser. Creá grupos desde **Configuración → Roles de usuarios**, asignales permisos de menú, y aprobá usuarios nuevos desde **Configuración → Autorización de usuarios**.
 
 ## Sidebar
 

@@ -148,9 +148,11 @@ sacad/
 
 | Clase | Lógica | Aplica a |
 |-------|--------|----------|
-| `EsAdminUniversidad` | superuser OR group "Admin Universidad" OR `GroupMenuPermission("facultades", write)` | Facultad write |
-| `EsSecretarioAcademico` | superuser OR groups ["Admin Universidad", "Secretario Académico"] OR `GroupMenuPermission("sedes"/"carreras"/etc, write)` | Sede, Carrera, Plan, TipoMateria, Area write |
-| `EsDirectorCarrera` | superuser OR groups ["Admin Universidad", "Secretario Académico", "Director Carrera"] OR `GroupMenuPermission("materias", write)` | Materia, Correlatividad write |
+| `EsAdminUniversidad` | `is_superuser OR tiene_permiso_menu(user, "facultades", require_write=True)` | Facultad write |
+| `EsSecretarioAcademico` | `is_superuser OR tiene_permiso_menu(user, "sedes"/"carreras"/etc, require_write=True)` | Sede, Carrera, Plan, TipoMateria, Area write |
+| `EsDirectorCarrera` | `is_superuser OR tiene_permiso_menu(user, "materias", require_write=True)` | Materia, Correlatividad write |
+
+No hay hardcoding de nombres de grupo (`"Admin Universidad"`, `"Secretario Académico"`, `"Director Carrera"`) en ninguna permission class. Todo pasa por `GroupMenuPermission`.
 
 Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican `is_staff OR tiene_permiso_menu(user, menu_key, require_write)` en lugar de solo `is_staff`. El helper `tiene_permiso_menu()` está en `usuarios/permissions.py`.
 
@@ -226,7 +228,8 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 2. **Email**: POST `/auth/login/` con email+password → JWT
 3. **Tokens**: `sessionStorage` (se borran al cerrar browser)
 4. **Nuevos usuarios Google**: Se crean con `is_active=False`, redirect a `/auth/pending`
-5. **Aprobación**: Staff → PATCH `/auth/approve-user/<id>/` → auto-asigna grupo "Director Carrera" si no tiene grupos
+5. **Aprobación**: Staff → PATCH `/auth/approve-user/<id>/` → asigna el primer grupo disponible (`Group.objects.first()`) si el usuario no tiene grupos.
+6. **Bloqueo sin grupo**: Si el usuario está aprobado pero no tiene grupos → `UserSerializer.needs_group=True` → `ProtectedRoute` lo redirige a `/auth/pending?reason=group` con mensaje "Sin grupo asignado". No puede entrar al sistema hasta que un admin le asigne un grupo.
 
 ## Frontend — Layout
 
@@ -262,20 +265,9 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - **Serializers**: List serializers separados con counts via `SerializerMethodField`
 - **Filtros**: `django-filters` FilterSets con `DjangoFilterBackend`
 - **Voseo**: Todos los mensajes de error usan "vos" (ej: "Completá", "seleccioná", "tenés"). No usar "tú" ni "usted".
-- **No necesitás makemigrations**: las migraciones actuales (0001 a 0004) están en el repo. El entrypoint `makemigrations --noinput` solo se fija si hay cambios nuevos. Hoy no hay cambios pendientes.
+- **No necesitás makemigrations**: las migraciones actuales (0001 a 0005) están en el repo. El entrypoint `makemigrations --noinput` solo se fija si hay cambios nuevos. Hoy no hay cambios pendientes.
 - **No hay seed data**: los seeders fueron eliminados. La DB está vacía (flush). Para probar hay que cargar datos manualmente desde el frontend.
 - **seed*.py están gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` no se trackea.
-
-## Backend — Gaps conocidos
-
-1. ~~**MateriaViewSet.destroy()** no captura `ProtectedError`~~ ✅ Ahora protege contra correlativas y equivalencias con `Response({"detail": ...}, 409)`.
-2. **CorrelatividadViewSet** requiere `EsDirectorCarrera` incluso para lectura (global), a diferencia de otros viewsets que usan `IsAuthenticated` para lectura.
-3. **EquivalenciaViewSet** usa filtro manual en `get_queryset()` en vez de `django-filters`.
-4. **CorrelatividadViewSet** no tiene filtros.
-5. No hay endpoint de stats de equivalencias expuesto (el engine tiene `get_stats_plan()`).
-6. ~~**TipoMateriaViewSet.destroy()** no captura `ProtectedError`~~ ✅ Ahora retorna `Response({"detail": ...}, 409)`.
-7. **AreaViewSet.delete** verifica `if a.materias_count > 0` y retorna 409 manualmente.
-8. ~~**MateriaViewSet** sin filtro de plan_estudio en el frontend~~ ✅ El backend lo soporta (MateriaFilter tiene `plan_estudio__exact`), el frontend no lo expone aún.
 
 ## Frontend — Gaps conocidos
 
@@ -309,6 +301,17 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - **Frontend AppSidebar**: filtrado por `canRead()` — solo muestra menús con permiso de lectura (o escritura, que implica lectura).
 - **Frontend pages**: las 11 páginas CRUD actualizadas para combinar `user?.group_names` con `canWriteMenu("menuKey")` en su lógica de `canWrite`.
 - **UserDropdown**: simplificado a solo "Mi Perfil" y "Cerrar Sesión".
+- **Refactor permisos**: eliminado todo hardcoding de nombres de grupo en backend (`academica/permissions.py`) y frontend (todas las pages). `canWrite` ahora solo usa `user?.is_superuser || canWriteMenu("key")`, sin `user?.group_names?.includes(...)`.
+- **`tiene_permiso_menu()`**: si el usuario no tiene grupos → `False`. Si sus grupos no tienen ningún permiso activo → `True` (unrestricted). Si tienen permisos activos → chequea clave específica.
+- **`my_menu_permissions()`**: `configured` es per‑user. Sin grupos → `{"permissions": {}, "configured": true}`. Grupos sin permisos activos → `{"permissions": {}, "configured": false}`.
+- **`useMenuPermissions()`**: `canRead` y `canWrite` envueltas en `useCallback` con `[configured, perms]` para evitar referencias inestables. Polling cada 30s via `setInterval(refetch, 30000)`.
+- **Bug sidebar submenu**: el `useEffect` que auto‑cerraba submenús dependía de `[location, isActive, visibleNavItems]`. Como `visibleNavItems` cambia de referencia en cada render (por `useCallback` de `canRead`), el efecto se disparaba siempre y cerraba el submenu recién abierto. Fix: depender solo de `[location.pathname, isActive]` e iterar `navItems` en vez de `visibleNavItems`.
+- **`needs_group`**: campo en `UserSerializer`. Si el usuario no es superuser y no tiene grupos → `needs_group=True`. `ProtectedRoute` redirige a `/auth/pending?reason=group`. `AuthPending` muestra mensaje distinto según `reason`.
+- **`createuser` command**: `python manage.py createuser email@ejemplo.com --password x` crea superadmin + Profile APPROVED. No crea grupos.
+- **Modelo Materia**: `carga_horaria_semanal` → `null=True, blank=True`, `tipo` → `null=True, blank=True`. Migración `0005`.
+- **`approve_user()`**: eliminada referencia a "Director Carrera". Asigna primer grupo disponible.
+- **Pipeline CI/CD**: usa `docker compose down --remove-orphans` en vez de `docker rm -f`.
+- **GestionRolesPage**: eliminado `GROUP_COLORS` hardcodeado y placeholder "Secretario Académico".
 
 ## Próximas tareas lógicas
 
@@ -317,7 +320,7 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - Listar correlativas actuales via `GET /materias/{id}/correlativas/`
 - Agregar nueva correlativa: seleccionar materia + tipo (cursar/cursado/aprobar/aprobacion/regular)
 - Eliminar correlativa via `DELETE /correlatividades/{id}/`
-- Permisos: solo `EsDirectorCarrera`
+- Permisos: solo `EsDirectorCarrera` (via GroupMenuPermission "materias")
 
 ### 2. No hay seed data
 - Los seeders fueron eliminados del repositorio. La DB está vacía (flush). Para probar hay que cargar datos manualmente desde el frontend.
@@ -341,7 +344,6 @@ Para cursar cuarto año → 100% hasta 2do año aprobado + 4 espacios de 3er añ
 ### 5. Verificar permisos en producción
 - victor.costa@fce.uncu.edu.ar tiene `is_staff=False`, grupo "administrador", `can_write=True` en todos los menús.
 - Verificar que pueda crear/editar/eliminar en todos los módulos (facultades, sedes, carreras, planes, áreas, materias, equivalencias, tipos-materia, dominios, roles, usuarios).
-- Verificar que el sidebar muestre todos los subitems de Académica (posible problema de expansión).
 - Verificar que un usuario sin permisos no pueda escribir ni vea menús restringidos.
 
 ## Comandos útiles
@@ -403,6 +405,10 @@ Si una migración falla por conflictos de datos (ej: campo NOT NULL sin default 
 4. **Modal pattern**: `max-w-[...]` en className (no `!w-[...]`), contentClasses tiene `w-full` fijo. Los botones de formulario siempre van al fondo (flex justify-end), nunca en medio de los campos.
 5. **Seed scripts gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` está en `.gitignore`. El comando `seed_data.py` fue eliminado del repositorio.
 6. **DB actualmente limpia**: flusheada. No hay datos cargados. Hay que cargarlos manualmente desde el frontend.
-7. **Permisos por menú**: los grupos ahora tienen `GroupMenuPermission` con permisos de lectura/escritura por menú. La lógica de autorización backend para vistas normales es: `is_staff OR tiene_permiso_menu()`. Para ViewSets de académica: `superuser OR group_name OR GroupMenuPermission`. En frontend: `useMenuPermissions().canWrite("menuKey")` combinado con `user?.group_names`.
+7. **Permisos por menú**: los grupos ahora tienen `GroupMenuPermission` con permisos de lectura/escritura por menú. La lógica de autorización backend para vistas normales es: `is_staff OR tiene_permiso_menu()`. Para ViewSets de académica: `superuser OR GroupMenuPermission` (sin hardcoding de nombres de grupo). En frontend: `useMenuPermissions().canWrite("menuKey")` combinado con `user?.is_superuser`.
 8. **UserDropdown**: solo muestra "Mi Perfil" y "Cerrar Sesión". No hay notificaciones reales implementadas.
-9. **canWrite en frontend**: debe incluir `canWriteMenu("menuKey")` además de los chequeos de grupo. El hook `useMenuPermissions` necesita que el endpoint `/auth/groups/me/permissions/` responda correctamente (requiere tener GroupMenuPermission creados para el grupo del usuario).
+9. **canWrite en frontend**: ahora solo usa `user?.is_superuser || canWriteMenu("menuKey")`. Sin `user?.group_names?.includes(...)`. El hook `useMenuPermissions` usa `useCallback` para `canRead`/`canWrite` con dependencias `[configured, perms]` para evitar referencias inestables. Tiene polling cada 30s via `setInterval(refetch, 30000)`.
+10. **Bug sidebar submenu**: el `useEffect` que auto‑abre/cierra submenús según la ruta actual NO debe depender de `visibleNavItems` (cambia en cada render). Usar `navItems` estático y depender solo de `[location.pathname, isActive]`.
+11. **`needs_group`**: `UserSerializer` incluye campo `needs_group=True` si el usuario no es superuser y no tiene grupos. `ProtectedRoute` redirige a `/auth/pending?reason=group`. El usuario no puede ingresar hasta tener grupo.
+12. **`createuser` command**: `python manage.py createuser email@ejemplo.com --password x` crea superadmin + Profile APPROVED. No crea grupos ni permisos.
+13. **Materia**: `carga_horaria_semanal` y `tipo` son `null=True, blank=True` desde migración 0005.

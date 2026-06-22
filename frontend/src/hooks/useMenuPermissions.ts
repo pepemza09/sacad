@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useApiData } from "./useApiData";
 
 interface MenuPermission {
@@ -22,16 +22,16 @@ export function useMenuPermissions() {
   const configured = data?.configured ?? false;
   const perms = data?.permissions ?? {};
 
-  const canRead = (menuKey: string): boolean => {
+  const canRead = useCallback((menuKey: string): boolean => {
     if (!configured) return true;
     const p = perms[menuKey];
     return p?.can_read || p?.can_write || false;
-  };
+  }, [configured, perms]);
 
-  const canWrite = (menuKey: string): boolean => {
+  const canWrite = useCallback((menuKey: string): boolean => {
     if (!configured) return true;
     return perms[menuKey]?.can_write ?? false;
-  };
+  }, [configured, perms]);
 
   return { permissions: perms, loading, canRead, canWrite, refetch };
 }
