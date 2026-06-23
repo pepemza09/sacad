@@ -55,16 +55,9 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    name: "Configuración",
     icon: <SettingsIcon />,
-    subItems: [
-      { name: "Panel", path: "/configuracion" },
-      { name: "Autorización usuarios", path: "/configuracion/usuarios" },
-      { name: "Dominios permitidos", path: "/configuracion/dominios" },
-      { name: "Roles de usuarios", path: "/configuracion/roles" },
-      { name: "Tipos de Materia", path: "/configuracion/tipos-materia" },
-      { name: "Designaciones", path: "/configuracion/designaciones" },
-    ],
+    name: "Configuración",
+    path: "/configuracion",
   },
 ];
 
