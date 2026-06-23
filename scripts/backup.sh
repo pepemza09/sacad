@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BACKUP_DIR="${1:-./backups}"
-COMPOSE_FILE="${2:-docker-compose.yml}"
+COMPOSE_FILE="${2:-${COMPOSE_FILE:-docker-compose.yml}}"
 DB_USER="${DB_USER:-sacad}"
 DB_NAME="${DB_NAME:-sacad}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
