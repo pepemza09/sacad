@@ -44,12 +44,14 @@ const MENU_ITEMS = [
   { key: "planes", label: "Planes de Estudio" },
   { key: "areas", label: "Áreas" },
   { key: "materias", label: "Materias" },
+  { key: "docentes", label: "Docentes" },
   { key: "equivalencias", label: "Equivalencias" },
   { key: "configuracion", label: "Configuración" },
   { key: "configuracion.usuarios", label: "Config. - Autorización usuarios" },
   { key: "configuracion.dominios", label: "Config. - Dominios permitidos" },
   { key: "configuracion.roles", label: "Config. - Roles de usuarios" },
   { key: "configuracion.tipos-materia", label: "Config. - Tipos de Materia" },
+  { key: "configuracion.designaciones", label: "Config. - Designaciones" },
 ];
 
 const defaultMenuPerms = (): MenuPerm[] =>
@@ -355,7 +357,7 @@ export default function GestionRolesPage() {
         </div>
       </div>
 
-      <Modal isOpen={modal.isOpen} onClose={modal.closeModal} className="max-w-[700px] m-4">
+      <Modal isOpen={modal.isOpen} onClose={modal.closeModal} className="max-w-[90vw] m-4">
         <div className="px-6 py-8">
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
