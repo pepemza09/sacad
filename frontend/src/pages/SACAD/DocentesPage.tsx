@@ -177,12 +177,7 @@ export default function DocentesPage() {
       refetch();
     } catch (err: unknown) {
       if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as {
-          response?: {
-            status?: number;
-            data?: Record<string, string | string[]>;
-          };
-        };
+        const axiosErr = err as { response?: { status?: number; data?: Record<string, string | string[]> } };
         if (axiosErr.response?.status === 401) {
           setFormError("Iniciá sesión para realizar esta acción.");
           return;
@@ -190,13 +185,21 @@ export default function DocentesPage() {
         const apiErrors = axiosErr.response?.data;
         if (apiErrors) {
           const mapped: FieldErrors = {};
+          let hasFieldError = false;
           for (const [key, msgs] of Object.entries(apiErrors)) {
             if (key in emptyForm) {
               mapped[key as keyof FieldErrors] = Array.isArray(msgs) ? msgs[0] : String(msgs);
+              hasFieldError = true;
             }
+          }
+          if (!hasFieldError) {
+            const firstMsg = Object.values(apiErrors).flat()[0];
+            setFormError(String(firstMsg || "Error al guardar el docente."));
           }
           setErrors(mapped);
         }
+      } else {
+        setFormError("Error de conexión. Intentá de nuevo.");
       }
     } finally {
       setSaving(false);
@@ -354,13 +357,13 @@ export default function DocentesPage() {
         </div>
       </div>
 
-      <Modal isOpen={modal.isOpen} onClose={modal.closeModal} className="max-w-[500px] m-4">
-        <div className="no-scrollbar relative w-full max-w-[500px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
-          <div className="px-2 pr-14">
+      <Modal isOpen={modal.isOpen} onClose={modal.closeModal} className="max-w-[90vw] my-8">
+        <div className="px-6 lg:px-10 py-6 lg:py-10">
+          <div className="mb-6">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
               {editingId ? "Editar Docente" : "Agregar Docente"}
             </h4>
-            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {editingId
                 ? "Modificá los datos del docente"
                 : "Completá los datos para registrar un nuevo docente"}
@@ -380,182 +383,188 @@ export default function DocentesPage() {
                 </div>
               )}
 
-              <div ref={facultadRef} className="relative">
-                <Label htmlFor="facultad">Facultad</Label>
-                <input
-                  id="facultad"
-                  type="text"
-                  placeholder="Buscá una facultad..."
-                  value={facultadSearch}
-                  onChange={(e) => {
-                    setFacultadSearch(e.target.value);
-                    setForm({ ...form, facultad: undefined });
-                    setFacultadDropdownOpen(true);
-                  }}
-                  onFocus={() => setFacultadDropdownOpen(true)}
-                  className={`w-full px-3 py-2 text-sm border rounded-lg bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400 ${
-                    errors.facultad
-                      ? "border-error-500"
-                      : "border-gray-200 dark:border-gray-700"
-                  }`}
-                />
-                {facultadDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                    {facultadFiltered.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-gray-400">Sin resultados</div>
-                    ) : (
-                      facultadFiltered.map((f) => (
-                        <button
-                          key={f.id}
-                          type="button"
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                            form.facultad === f.id
-                              ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
-                              : "text-gray-800 dark:text-white/90"
-                          }`}
-                          onClick={() => {
-                            setForm({ ...form, facultad: f.id });
-                            setFacultadSearch(f.nombre);
-                            setFacultadDropdownOpen(false);
-                          }}
-                        >
-                          {f.nombre}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-                {errors.facultad && (
-                  <p className="mt-1 text-xs text-error-500">{errors.facultad}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="apellido">Apellido</Label>
-                <Input
-                  id="apellido"
-                  placeholder="Ej: García"
-                  value={form.apellido}
-                  onChange={(e) =>
-                    setForm({ ...form, apellido: e.target.value })
-                  }
-                  error={!!errors.apellido}
-                />
-                {errors.apellido && (
-                  <p className="mt-1 text-xs text-error-500">{errors.apellido}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="nombre">Nombre</Label>
-                <Input
-                  id="nombre"
-                  placeholder="Ej: Juan"
-                  value={form.nombre}
-                  onChange={(e) =>
-                    setForm({ ...form, nombre: e.target.value })
-                  }
-                  error={!!errors.nombre}
-                />
-                {errors.nombre && (
-                  <p className="mt-1 text-xs text-error-500">{errors.nombre}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="dni">DNI</Label>
-                <Input
-                  id="dni"
-                  placeholder="Ej: 12345678"
-                  value={form.dni}
-                  onChange={(e) =>
-                    setForm({ ...form, dni: e.target.value })
-                  }
-                  error={!!errors.dni}
-                />
-                {errors.dni && (
-                  <p className="mt-1 text-xs text-error-500">{errors.dni}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="cuit_cuil">CUIT / CUIL</Label>
-                <Input
-                  id="cuit_cuil"
-                  placeholder="Ej: 20-12345678-9"
-                  value={form.cuit_cuil}
-                  onChange={(e) =>
-                    setForm({ ...form, cuit_cuil: e.target.value })
-                  }
-                  error={!!errors.cuit_cuil}
-                />
-                {errors.cuit_cuil && (
-                  <p className="mt-1 text-xs text-error-500">{errors.cuit_cuil}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="legajo">Legajo</Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="legajo"
-                    placeholder="Ej: 12345"
-                    value={form.legajo}
-                    onChange={(e) =>
-                      setForm({ ...form, legajo: e.target.value })
-                    }
-                    error={!!errors.legajo}
-                    disabled={form.legajo_en_tramite}
-                    className={form.legajo_en_tramite ? "opacity-50" : ""}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="col-span-2 relative" ref={facultadRef}>
+                  <Label htmlFor="facultad">Facultad</Label>
+                  <input
+                    id="facultad"
+                    type="text"
+                    placeholder="Buscá una facultad..."
+                    value={facultadSearch}
+                    onChange={(e) => {
+                      setFacultadSearch(e.target.value);
+                      setForm({ ...form, facultad: undefined });
+                      setFacultadDropdownOpen(true);
+                    }}
+                    onFocus={() => setFacultadDropdownOpen(true)}
+                    className={`h-11 w-full rounded-lg border bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 placeholder-gray-400 ${
+                      errors.facultad
+                        ? "border-error-500"
+                        : "border-gray-300 dark:border-gray-700"
+                    }`}
                   />
-                  <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={form.legajo_en_tramite}
-                      onChange={(e) =>
-                        setForm({ ...form, legajo_en_tramite: e.target.checked })
-                      }
-                      className="rounded border-gray-300 dark:border-gray-600"
-                    />
-                    En trámite
-                  </label>
+                  {facultadDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                      {facultadFiltered.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-400">Sin resultados</div>
+                      ) : (
+                        facultadFiltered.map((f) => (
+                          <button
+                            key={f.id}
+                            type="button"
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                              form.facultad === f.id
+                                ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                                : "text-gray-800 dark:text-white/90"
+                            }`}
+                            onClick={() => {
+                              setForm({ ...form, facultad: f.id });
+                              setFacultadSearch(f.nombre);
+                              setFacultadDropdownOpen(false);
+                            }}
+                          >
+                            {f.nombre}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                  {errors.facultad && (
+                    <p className="mt-1 text-xs text-error-500">{errors.facultad}</p>
+                  )}
                 </div>
-                {errors.legajo && (
-                  <p className="mt-1 text-xs text-error-500">{errors.legajo}</p>
-                )}
               </div>
 
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Ej: juan.garcia@fce.uncu.edu.ar"
-                  value={form.email}
-                  onChange={(e) =>
-                    setForm({ ...form, email: e.target.value })
-                  }
-                  error={!!errors.email}
-                />
-                {errors.email && (
-                  <p className="mt-1 text-xs text-error-500">{errors.email}</p>
-                )}
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="apellido">Apellido</Label>
+                  <Input
+                    id="apellido"
+                    placeholder="Ej: García"
+                    value={form.apellido}
+                    onChange={(e) =>
+                      setForm({ ...form, apellido: e.target.value })
+                    }
+                    error={!!errors.apellido}
+                  />
+                  {errors.apellido && (
+                    <p className="mt-1 text-xs text-error-500">{errors.apellido}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="nombre">Nombre</Label>
+                  <Input
+                    id="nombre"
+                    placeholder="Ej: Juan"
+                    value={form.nombre}
+                    onChange={(e) =>
+                      setForm({ ...form, nombre: e.target.value })
+                    }
+                    error={!!errors.nombre}
+                  />
+                  {errors.nombre && (
+                    <p className="mt-1 text-xs text-error-500">{errors.nombre}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="dni">DNI</Label>
+                  <Input
+                    id="dni"
+                    placeholder="Ej: 12345678"
+                    value={form.dni}
+                    onChange={(e) =>
+                      setForm({ ...form, dni: e.target.value })
+                    }
+                    error={!!errors.dni}
+                  />
+                  {errors.dni && (
+                    <p className="mt-1 text-xs text-error-500">{errors.dni}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="cuit_cuil">CUIT / CUIL</Label>
+                  <Input
+                    id="cuit_cuil"
+                    placeholder="Ej: 20-12345678-9"
+                    value={form.cuit_cuil}
+                    onChange={(e) =>
+                      setForm({ ...form, cuit_cuil: e.target.value })
+                    }
+                    error={!!errors.cuit_cuil}
+                  />
+                  {errors.cuit_cuil && (
+                    <p className="mt-1 text-xs text-error-500">{errors.cuit_cuil}</p>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <Label htmlFor="telefono">Teléfono</Label>
-                <Input
-                  id="telefono"
-                  placeholder="Ej: 261 123 4567"
-                  value={form.telefono}
-                  onChange={(e) =>
-                    setForm({ ...form, telefono: e.target.value })
-                  }
-                  error={!!errors.telefono}
-                />
-                {errors.telefono && (
-                  <p className="mt-1 text-xs text-error-500">{errors.telefono}</p>
-                )}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="legajo">Legajo</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="legajo"
+                      placeholder="Ej: 12345"
+                      value={form.legajo}
+                      onChange={(e) =>
+                        setForm({ ...form, legajo: e.target.value })
+                      }
+                      error={!!errors.legajo}
+                      disabled={form.legajo_en_tramite}
+                      className={form.legajo_en_tramite ? "opacity-50" : ""}
+                    />
+                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={form.legajo_en_tramite}
+                        onChange={(e) =>
+                          setForm({ ...form, legajo_en_tramite: e.target.checked })
+                        }
+                        className="rounded border-gray-300 dark:border-gray-600"
+                      />
+                      En trámite
+                    </label>
+                  </div>
+                  {errors.legajo && (
+                    <p className="mt-1 text-xs text-error-500">{errors.legajo}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Ej: juan.garcia@fce.uncu.edu.ar"
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
+                    error={!!errors.email}
+                  />
+                  {errors.email && (
+                    <p className="mt-1 text-xs text-error-500">{errors.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Input
+                    id="telefono"
+                    placeholder="Ej: 261 123 4567"
+                    value={form.telefono}
+                    onChange={(e) =>
+                      setForm({ ...form, telefono: e.target.value })
+                    }
+                    error={!!errors.telefono}
+                  />
+                  {errors.telefono && (
+                    <p className="mt-1 text-xs text-error-500">{errors.telefono}</p>
+                  )}
+                </div>
               </div>
 
               <div key={editingId ?? "create"}>

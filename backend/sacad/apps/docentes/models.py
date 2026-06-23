@@ -14,6 +14,7 @@ class Docente(models.Model):
         max_length=15,
         unique=True,
         blank=True,
+        null=True,
         validators=[RegexValidator(r"^\d{2}-\d{8}-\d$", "Formato: XX-XXXXXXXX-X")],
     )
     legajo = models.CharField(max_length=20, blank=True)
