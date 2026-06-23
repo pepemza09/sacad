@@ -17,7 +17,15 @@ interface Designacion {
   codigo: string;
   descripcion: string;
   activo: boolean;
+  requiere_fecha?: string;
 }
+
+const REQUIERE_FECHA_OPTIONS = [
+  { value: "ninguna", label: "Sin fechas" },
+  { value: "inicio", label: "Solo fecha de inicio" },
+  { value: "fin", label: "Solo fecha de fin" },
+  { value: "ambas", label: "Fecha de inicio y fin" },
+];
 
 const TABS: { key: Tab; label: string; endpoint: string; title: string; desc: string }[] = [
   { key: "cargos", label: "Cargos", endpoint: "/cargos/", title: "Cargos", desc: "Configurá los cargos docentes." },
@@ -37,6 +45,7 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [requiereFecha, setRequiereFecha] = useState("ninguna");
 
   const openCreate = () => {
     setEditingId(null);
@@ -44,6 +53,7 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     setCodigo("");
     setDescripcion("");
     setActivo(true);
+    setRequiereFecha("ninguna");
     setError("");
   };
 
@@ -53,6 +63,7 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     setCodigo(item.codigo);
     setDescripcion(item.descripcion);
     setActivo(item.activo);
+    setRequiereFecha(item.requiere_fecha || "ninguna");
     setError("");
   };
 
@@ -62,6 +73,7 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     setCodigo("");
     setDescripcion("");
     setActivo(true);
+    setRequiereFecha("ninguna");
     setError("");
   };
 
@@ -73,7 +85,10 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     setSaving(true);
     setError("");
     try {
-      const payload = { codigo: c, descripcion: d, activo };
+      const payload: Record<string, unknown> = { codigo: c, descripcion: d, activo };
+      if (tab.key === "caracteres") {
+        payload.requiere_fecha = requiereFecha;
+      }
       if (editingId) {
         await apiClient.put(`${tab.endpoint}${editingId}/`, payload);
       } else {
@@ -150,6 +165,20 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
                 className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400"
               />
             </div>
+            {tab.key === "caracteres" && (
+              <div className="flex-1">
+                <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Requiere fecha</label>
+                <select
+                  value={requiereFecha}
+                  onChange={(e) => setRequiereFecha(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90"
+                >
+                  {REQUIERE_FECHA_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex items-center gap-2 pb-1">
               <input
                 type="checkbox"
@@ -174,20 +203,26 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
             <tr>
               <th className="px-4 py-3 w-28">Código</th>
               <th className="px-4 py-3">Descripción</th>
+              {tab.key === "caracteres" && <th className="px-4 py-3 w-44">Requiere fecha</th>}
               <th className="px-4 py-3 w-28">Estado</th>
               <th className="px-4 py-3 w-28">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center">Cargando...</td></tr>
+              <tr><td colSpan={tab.key === "caracteres" ? 5 : 4} className="px-4 py-8 text-center">Cargando...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">No hay registros.</td></tr>
+              <tr><td colSpan={tab.key === "caracteres" ? 5 : 4} className="px-4 py-8 text-center text-gray-400">No hay registros.</td></tr>
             ) : (
               items.map((item) => (
                 <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700">
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 uppercase">{item.codigo}</td>
                   <td className="px-4 py-3 text-gray-800 dark:text-white/90">{item.descripcion}</td>
+                  {tab.key === "caracteres" && (
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                      {REQUIERE_FECHA_OPTIONS.find((o) => o.value === item.requiere_fecha)?.label || "Sin fechas"}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${item.activo ? "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500" : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}`}>
                       {item.activo ? "Activo" : "Inactivo"}

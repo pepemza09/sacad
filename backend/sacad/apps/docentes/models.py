@@ -31,8 +31,19 @@ class Dedicacion(models.Model):
 
 
 class Caracter(models.Model):
+    class RequiereFecha(models.TextChoices):
+        NINGUNA = "ninguna", "Sin fechas"
+        INICIO = "inicio", "Solo fecha de inicio"
+        FIN = "fin", "Solo fecha de fin"
+        AMBAS = "ambas", "Fecha de inicio y fin"
+
     codigo = models.CharField(max_length=20, unique=True)
     descripcion = models.CharField(max_length=255)
+    requiere_fecha = models.CharField(
+        max_length=10,
+        choices=RequiereFecha.choices,
+        default=RequiereFecha.NINGUNA,
+    )
     activo = models.BooleanField(default=True)
 
     class Meta:
