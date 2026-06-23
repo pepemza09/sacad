@@ -16,6 +16,7 @@ import PlanesPage from "./pages/SACAD/PlanesPage";
 import AreasPage from "./pages/SACAD/AreasPage";
 import MateriasPage from "./pages/SACAD/MateriasPage";
 import EquivalenciasPage from "./pages/SACAD/EquivalenciasPage";
+import DocentesPage from "./pages/SACAD/DocentesPage";
 import ProfilePage from "./pages/SACAD/ProfilePage";
 import ConfiguracionPage from "./pages/SACAD/ConfiguracionPage";
 import AutorizacionUsuariosPage from "./pages/SACAD/AutorizacionUsuariosPage";
@@ -40,6 +41,7 @@ export default function App() {
               <Route path="/areas" element={<AreasPage />} />
               <Route path="/materias" element={<MateriasPage />} />
               <Route path="/equivalencias" element={<EquivalenciasPage />} />
+              <Route path="/docentes" element={<DocentesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
               <Route path="/configuracion/usuarios" element={<AutorizacionUsuariosPage />} />

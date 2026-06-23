@@ -22,8 +22,12 @@ interface Docente {
   id: number;
   apellido: string;
   nombre: string;
-  email: string;
   dni: string;
+  cuit_cuil: string;
+  legajo: string;
+  legajo_en_tramite: boolean;
+  legajo_display: string;
+  email: string;
   telefono: string;
   facultad: number | null;
   facultad_nombre: string;
@@ -33,8 +37,11 @@ interface Docente {
 interface DocenteForm {
   apellido: string;
   nombre: string;
-  email: string;
   dni: string;
+  cuit_cuil: string;
+  legajo: string;
+  legajo_en_tramite: boolean;
+  email: string;
   telefono: string;
   facultad: number | undefined;
   activo: boolean;
@@ -43,8 +50,10 @@ interface DocenteForm {
 interface FieldErrors {
   apellido?: string;
   nombre?: string;
-  email?: string;
   dni?: string;
+  cuit_cuil?: string;
+  legajo?: string;
+  email?: string;
   telefono?: string;
   facultad?: string;
 }
@@ -52,8 +61,11 @@ interface FieldErrors {
 const emptyForm: DocenteForm = {
   apellido: "",
   nombre: "",
-  email: "",
   dni: "",
+  cuit_cuil: "",
+  legajo: "",
+  legajo_en_tramite: false,
+  email: "",
   telefono: "",
   facultad: undefined,
   activo: true,
@@ -125,8 +137,11 @@ export default function DocentesPage() {
     setForm({
       apellido: d.apellido,
       nombre: d.nombre,
-      email: d.email,
       dni: d.dni,
+      cuit_cuil: d.cuit_cuil,
+      legajo: d.legajo,
+      legajo_en_tramite: d.legajo_en_tramite,
+      email: d.email,
       telefono: d.telefono,
       facultad: d.facultad ?? undefined,
       activo: d.activo,
@@ -142,8 +157,8 @@ export default function DocentesPage() {
     const newErrors: FieldErrors = {};
     if (!form.apellido.trim()) newErrors.apellido = "Este campo es obligatorio.";
     if (!form.nombre.trim()) newErrors.nombre = "Este campo es obligatorio.";
-    if (!form.email.trim()) newErrors.email = "Este campo es obligatorio.";
     if (!form.dni.trim()) newErrors.dni = "Este campo es obligatorio.";
+    if (!form.email.trim()) newErrors.email = "Este campo es obligatorio.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -251,8 +266,10 @@ export default function DocentesPage() {
               <tr>
                 <th className="px-4 py-3">Apellido</th>
                 <th className="px-4 py-3">Nombre</th>
-                <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">DNI</th>
+                <th className="px-4 py-3">CUIT/CUIL</th>
+                <th className="px-4 py-3">Legajo</th>
+                <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Teléfono</th>
                 <th className="px-4 py-3">Facultad</th>
                 <th className="px-4 py-3">Estado</th>
@@ -262,13 +279,13 @@ export default function DocentesPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center">
+                  <td colSpan={10} className="px-4 py-8 text-center">
                     Cargando...
                   </td>
                 </tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
                     No hay docentes registrados
                   </td>
                 </tr>
@@ -282,8 +299,10 @@ export default function DocentesPage() {
                       {d.apellido}
                     </td>
                     <td className="px-4 py-3">{d.nombre}</td>
-                    <td className="px-4 py-3">{d.email}</td>
                     <td className="px-4 py-3">{d.dni}</td>
+                    <td className="px-4 py-3">{d.cuit_cuil || "-"}</td>
+                    <td className="px-4 py-3">{d.legajo_display}</td>
+                    <td className="px-4 py-3">{d.email}</td>
                     <td className="px-4 py-3">{d.telefono || "-"}</td>
                     <td className="px-4 py-3">{d.facultad_nombre || "-"}</td>
                     <td className="px-4 py-3">
@@ -444,6 +463,69 @@ export default function DocentesPage() {
               </div>
 
               <div>
+                <Label htmlFor="dni">DNI</Label>
+                <Input
+                  id="dni"
+                  placeholder="Ej: 12345678"
+                  value={form.dni}
+                  onChange={(e) =>
+                    setForm({ ...form, dni: e.target.value })
+                  }
+                  error={!!errors.dni}
+                />
+                {errors.dni && (
+                  <p className="mt-1 text-xs text-error-500">{errors.dni}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="cuit_cuil">CUIT / CUIL</Label>
+                <Input
+                  id="cuit_cuil"
+                  placeholder="Ej: 20-12345678-9"
+                  value={form.cuit_cuil}
+                  onChange={(e) =>
+                    setForm({ ...form, cuit_cuil: e.target.value })
+                  }
+                  error={!!errors.cuit_cuil}
+                />
+                {errors.cuit_cuil && (
+                  <p className="mt-1 text-xs text-error-500">{errors.cuit_cuil}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="legajo">Legajo</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="legajo"
+                    placeholder="Ej: 12345"
+                    value={form.legajo}
+                    onChange={(e) =>
+                      setForm({ ...form, legajo: e.target.value })
+                    }
+                    error={!!errors.legajo}
+                    disabled={form.legajo_en_tramite}
+                    className={form.legajo_en_tramite ? "opacity-50" : ""}
+                  />
+                  <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={form.legajo_en_tramite}
+                      onChange={(e) =>
+                        setForm({ ...form, legajo_en_tramite: e.target.checked })
+                      }
+                      className="rounded border-gray-300 dark:border-gray-600"
+                    />
+                    En trámite
+                  </label>
+                </div>
+                {errors.legajo && (
+                  <p className="mt-1 text-xs text-error-500">{errors.legajo}</p>
+                )}
+              </div>
+
+              <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -457,22 +539,6 @@ export default function DocentesPage() {
                 />
                 {errors.email && (
                   <p className="mt-1 text-xs text-error-500">{errors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="dni">DNI</Label>
-                <Input
-                  id="dni"
-                  placeholder="Ej: 12345678"
-                  value={form.dni}
-                  onChange={(e) =>
-                    setForm({ ...form, dni: e.target.value })
-                  }
-                  error={!!errors.dni}
-                />
-                {errors.dni && (
-                  <p className="mt-1 text-xs text-error-500">{errors.dni}</p>
                 )}
               </div>
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../context/auth/AuthContext";
 import { apiClient } from "../../api";
 
-const ZOOM_OPTIONS = [75, 90, 100, 110, 125, 150];
+const ZOOM_OPTIONS = [75, 80, 90, 100, 110, 125, 150];
 
 export const ZoomControl: React.FC = () => {
   const { user } = useAuth();

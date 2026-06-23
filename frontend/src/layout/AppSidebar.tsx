@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router";
 import {
   ChevronDownIcon,
   GridIcon,
+  GroupIcon,
   HorizontaLDots,
   ListIcon,
   PieChartIcon,
@@ -47,6 +48,13 @@ const navItems: NavItem[] = [
     path: "/equivalencias",
   },
   {
+    name: "Docentes",
+    icon: <GroupIcon />,
+    subItems: [
+      { name: "Docentes", path: "/docentes" },
+    ],
+  },
+  {
     icon: <SettingsIcon />,
     name: "Configuración",
     path: "/configuracion",
@@ -61,6 +69,7 @@ const pathToMenuKey: Record<string, string> = {
   "/planes": "planes",
   "/areas": "areas",
   "/materias": "materias",
+  "/docentes": "docentes",
   "/equivalencias": "equivalencias",
   "/configuracion": "configuracion",
   "/configuracion/usuarios": "configuracion.usuarios",

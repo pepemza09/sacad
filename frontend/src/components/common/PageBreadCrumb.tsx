@@ -55,34 +55,30 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, items }) => {
   if (!items || items.length === 0) return null;
 
   return (
-    <nav className="mb-6">
-      <ol className="flex flex-wrap items-center gap-2">
-        <li>
-          <Link
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-brand-500"
-            to="/"
-          >
-            Home
-          </Link>
-        </li>
-        {items.map((item, index) => (
-          <li key={index} className="flex items-center gap-2">
-            <span className="text-gray-300 dark:text-gray-600">·</span>
-            {item.href ? (
-              <Link
-                className="text-sm text-gray-500 dark:text-gray-400 hover:text-brand-500"
-                to={item.href}
-              >
-                {item.label}
-              </Link>
-            ) : (
-              <span className="text-sm text-gray-800 dark:text-white/90">
-                {item.label}
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
+    <nav className="mb-6 text-sm whitespace-nowrap">
+      <Link
+        className="text-gray-500 dark:text-gray-400 hover:text-brand-500"
+        to="/"
+      >
+        Home
+      </Link>
+      {items.map((item, index) => (
+        <span key={index}>
+          <span className="mx-1.5 text-gray-300 dark:text-gray-600">·</span>
+          {item.href ? (
+            <Link
+              className="text-gray-500 dark:text-gray-400 hover:text-brand-500"
+              to={item.href}
+            >
+              {item.label}
+            </Link>
+          ) : (
+            <span className="text-gray-800 dark:text-white/90">
+              {item.label}
+            </span>
+          )}
+        </span>
+      ))}
     </nav>
   );
 };
