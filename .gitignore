@@ -67,6 +67,7 @@ Thumbs.db
 backend/seed_all.py
 backend/update_plan2026.py
 backend/**/management/commands/seed*.py
+backend/**/fixtures/
 
 # Temp
 tmp/
