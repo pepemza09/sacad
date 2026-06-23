@@ -22,6 +22,7 @@ class EquivalenciaSerializer(serializers.ModelSerializer):
                 "nombre": m.nombre,
                 "plan_estudio": m.plan_estudio_id,
                 "plan_estudio_codigo": m.plan_estudio.codigo,
+                "plan_estudio_carrera_nombre": m.plan_estudio.carrera.nombre,
             }
             for m in obj.materias_origen.all()
         ]
@@ -34,6 +35,7 @@ class EquivalenciaSerializer(serializers.ModelSerializer):
                 "nombre": m.nombre,
                 "plan_estudio": m.plan_estudio_id,
                 "plan_estudio_codigo": m.plan_estudio.codigo,
+                "plan_estudio_carrera_nombre": m.plan_estudio.carrera.nombre,
             }
             for m in obj.materias_destino.all()
         ]

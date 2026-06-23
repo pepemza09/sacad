@@ -348,6 +348,9 @@ Para cursar cuarto año → 100% hasta 2do año aprobado + 4 espacios de 3er añ
 
 ## Comandos útiles
 
+> [!NOTE]
+> Dado que el entorno de desarrollo corre en WSL y el host es Windows, todos los comandos de `docker compose` o `make` deben ejecutarse dentro de la terminal de WSL o prefijarse con `wsl` desde PowerShell (ej: `wsl make up`).
+
 ```bash
 make build       # docker compose build
 make up          # docker compose up -d
@@ -357,6 +360,11 @@ make migrate     # docker compose exec backend python manage.py migrate
 make shell       # docker compose exec backend python manage.py shell_plus
 make dev-backend # cd backend && python manage.py runserver 0.0.0.0:8000
 make dev-frontend # cd frontend && npm run dev
+
+# Inicialización y carga de datos de prueba (Seed Data)
+wsl docker compose exec backend python manage.py crear_admin
+wsl docker compose exec backend python manage.py poblar_demo
+wsl docker compose exec backend python manage.py cargar_planes_2026
 
 # Reconstruir frontend tras cambios
 docker compose build frontend && docker compose up -d frontend

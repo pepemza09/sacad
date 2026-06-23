@@ -29,6 +29,7 @@ const colorPalette = [
 ];
 
 function hashName(s: string): number {
+  if (!s) return 0;
   let hash = 0;
   for (let i = 0; i < s.length; i++) {
     hash = ((hash << 5) - hash) + s.charCodeAt(i);
@@ -37,11 +38,17 @@ function hashName(s: string): number {
   return Math.abs(hash);
 }
 
-function getBadgeClass(tipo: string): string {
+function getBadgeClass(tipo: string | null | undefined): string {
+  if (!tipo) {
+    return "bg-gray-100 text-gray-700 dark:bg-gray-500/15 dark:text-gray-500";
+  }
   return colorPalette[hashName(tipo) % colorPalette.length].badge;
 }
 
-function getRowClass(tipo: string): string {
+function getRowClass(tipo: string | null | undefined): string {
+  if (!tipo) {
+    return "bg-gray-50/40 dark:bg-gray-500/[0.04]";
+  }
   return colorPalette[hashName(tipo) % colorPalette.length].row;
 }
 
@@ -76,6 +83,12 @@ interface AreaOption {
   plan_estudio: number;
 }
 
+interface TipoMateriaOption {
+  id: number;
+  nombre: string;
+  activo: boolean;
+}
+
 interface MateriaForm {
   plan_estudio: number;
   codigo: string;
@@ -86,6 +99,7 @@ interface MateriaForm {
   periodo: string;
   carga_horaria_total: string;
   area: number | null;
+  tipo: number | null;
   contenidos_minimos: string;
 }
 
@@ -103,6 +117,7 @@ const emptyForm: MateriaForm = {
   periodo: "",
   carga_horaria_total: "",
   area: null,
+  tipo: null,
   contenidos_minimos: "",
 };
 
@@ -131,6 +146,10 @@ export default function MateriasPage() {
     "/areas/",
     []
   );
+  const { data: tiposMateriaData } = useApiData<{ results: TipoMateriaOption[] }>(
+    "/tipos-materia/",
+    []
+  );
 
   const modal = useModal();
   const [form, setForm] = useState<MateriaForm>(emptyForm);
@@ -157,6 +176,7 @@ export default function MateriasPage() {
 
   const planes = planesData?.results || [];
   const areas = areasData?.results || [];
+  const tiposMateria = tiposMateriaData?.results || [];
 
   const areasDelPlan = form.plan_estudio
     ? areas.filter((a) => a.plan_estudio === form.plan_estudio)
@@ -196,6 +216,7 @@ export default function MateriasPage() {
       periodo: m.periodo ?? "",
       carga_horaria_total: m.carga_horaria_total.toString(),
       area: m.area,
+      tipo: m.tipo,
       contenidos_minimos: m.contenidos_minimos ?? "",
     });
     const a = areas.find((a) => a.id === m.area);
@@ -229,6 +250,7 @@ export default function MateriasPage() {
         carga_horaria_total: Number(form.carga_horaria_total),
         año: Number(form.año),
         area: form.area || null,
+        tipo: form.tipo || null,
       };
       if (editingId) {
         await apiClient.put(`/materias/${editingId}/`, payload);
@@ -462,7 +484,7 @@ export default function MateriasPage() {
                     id="periodo"
                     placeholder="Ej: B1/1C"
                     value={form.periodo}
-                    onChange={(e) => setForm({ ...form, periodo: e.target.value })}
+                    onChange={(e) => setForm({ ...form, periodo: e.target.value.toUpperCase() })}
                   />
                 </div>
                 <div className="col-span-1">
@@ -544,6 +566,25 @@ export default function MateriasPage() {
                   />
                   {errors.carga_horaria_total && (
                     <p className="mt-1 text-xs text-error-500">{errors.carga_horaria_total}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="tipo">Tipo de Materia</Label>
+                  <select
+                    id="tipo"
+                    value={form.tipo ?? 0}
+                    onChange={(e) => setForm({ ...form, tipo: Number(e.target.value) || null })}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                  >
+                    <option value={0}>Seleccionar tipo...</option>
+                    {tiposMateria.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.tipo && (
+                    <p className="mt-1 text-xs text-error-500">{errors.tipo}</p>
                   )}
                 </div>
               </div>

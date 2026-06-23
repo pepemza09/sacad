@@ -28,6 +28,7 @@ interface MateriaDisplay {
   nombre: string;
   plan_estudio: number;
   plan_estudio_codigo: string;
+  plan_estudio_carrera_nombre: string;
 }
 
 interface Equivalencia {
@@ -46,6 +47,7 @@ interface Equivalencia {
 }
 
 interface EquivalenciaForm {
+  plan_origen: string;
   plan_destino: string;
   materias_origen: MateriaOption[];
   materias_destino: MateriaOption[];
@@ -61,6 +63,7 @@ interface FieldErrors {
 }
 
 const emptyForm: EquivalenciaForm = {
+  plan_origen: "",
   plan_destino: "",
   materias_origen: [],
   materias_destino: [],
@@ -220,6 +223,12 @@ export default function EquivalenciasPage() {
   const [consulting, setConsulting] = useState(false);
 
   const planes = planesData?.results || [];
+  const origenMaterias = materias.filter(
+    (m) => m.plan_estudio === Number(form.plan_origen)
+  );
+  const destinoMaterias = materias.filter(
+    (m) => m.plan_estudio === Number(form.plan_destino)
+  );
   useEffect(() => { setPage(1); }, [data]);
 
   const openCreate = () => {
@@ -235,6 +244,7 @@ export default function EquivalenciasPage() {
     setErrors({});
     setFormError("");
     setForm({
+      plan_origen: eq.materias_origen_display[0]?.plan_estudio.toString() ?? "",
       plan_destino: eq.plan_destino.toString(),
       materias_origen: eq.materias_origen_display.map((m) => ({
         id: m.id,
@@ -503,23 +513,28 @@ export default function EquivalenciasPage() {
               <>
               <div className="space-y-2">
                 {paginated.map((eq) => {
-                  const origenPlan = eq.materias_origen_display[0]?.plan_estudio_codigo || "";
-                  const destCodes = eq.materias_destino_display.map((m) => `${m.codigo} ${m.nombre}`).join(" + ");
-                  const oriCodes = eq.materias_origen_display.map((m) => m.codigo).join(" + ");
+                  const renderMaterias = (list: MateriaDisplay[]) =>
+                    list.map((m, i) => (
+                      <span key={m.id}>
+                        {i > 0 && <span className="text-gray-400 mx-1">+</span>}
+                        <span className="text-brand-500 dark:text-brand-400 font-semibold">{m.codigo}</span>
+                        <span className="text-gray-400 mx-0.5">-</span>
+                        <span className="text-gray-800 dark:text-white/90 font-medium">{m.nombre}</span>
+                        <span className="text-gray-400 ml-0.5">({m.plan_estudio_carrera_nombre} - {m.plan_estudio_codigo})</span>
+                      </span>
+                    ));
                   return (
                     <div
                       key={eq.id}
                       className="flex items-center gap-2 p-3 border rounded-lg border-gray-200 dark:border-gray-700 text-sm"
                     >
-                      <span className="text-gray-800 dark:text-white/90 font-medium">
-                        {oriCodes || "Sin origen"}
+                      <span className="flex items-center gap-0 flex-wrap">
+                        {eq.materias_origen_display.length > 0 ? renderMaterias(eq.materias_origen_display) : <span className="text-gray-400">Sin origen</span>}
                       </span>
-                      <span className="text-xs text-gray-400">({origenPlan})</span>
                       <span className="text-gray-400">&gt;&gt;</span>
-                      <span className="text-gray-800 dark:text-white/90 font-medium">
-                        {destCodes || "Sin destino"}
+                      <span className="flex items-center gap-0 flex-wrap">
+                        {eq.materias_destino_display.length > 0 ? renderMaterias(eq.materias_destino_display) : <span className="text-gray-400">Sin destino</span>}
                       </span>
-                      <span className="text-xs text-gray-400">({eq.plan_destino_nombre})</span>
                       <span
                         className={`ml-auto inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
                           eq.tipo === "total"
@@ -584,9 +599,9 @@ export default function EquivalenciasPage() {
       <Modal
         isOpen={modal.isOpen}
         onClose={modal.closeModal}
-        className="max-w-[700px] m-4"
+        className="max-w-[90vw] m-4"
       >
-        <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
+        <div className="no-scrollbar relative w-full overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
               {editingId ? "Editar Equivalencia" : "Agregar Equivalencia"}
@@ -604,54 +619,83 @@ export default function EquivalenciasPage() {
             }}
             className="flex flex-col"
           >
-            <div className="px-2 pb-3 space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="px-2 pb-3 space-y-4 max-h-[65vh] overflow-y-auto">
               {formError && (
                 <div className="rounded-lg bg-error-50 border border-error-200 px-4 py-3 text-sm text-error-700 dark:bg-error-500/10 dark:border-error-500/20 dark:text-error-400">
                   {formError}
                 </div>
               )}
 
-              <div>
-                <Label htmlFor="plan_destino">Plan Destino</Label>
-                <select
-                  id="plan_destino"
-                  value={form.plan_destino}
-                  onChange={(e) =>
-                    setForm({ ...form, plan_destino: e.target.value })
-                  }
-                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-                >
-                  <option value="">Seleccionar plan...</option>
-                  {planes.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.carrera_nombre} - {p.codigo}
-                    </option>
-                  ))}
-                </select>
-                {errors.plan_destino && (
-                  <p className="mt-1 text-xs text-error-500">
-                    {errors.plan_destino}
-                  </p>
-                )}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                  <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Origen
+                  </h5>
+                  <div>
+                    <Label htmlFor="plan_origen">Plan Origen</Label>
+                    <select
+                      id="plan_origen"
+                      value={form.plan_origen}
+                      onChange={(e) =>
+                        setForm({ ...form, plan_origen: e.target.value, materias_origen: [] })
+                      }
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                    >
+                      <option value="">Seleccionar plan...</option>
+                      {planes.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.carrera_nombre} - {p.codigo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <MateriaMultiSelect
+                    label="Materias Origen"
+                    selected={form.materias_origen}
+                    onChange={(items) => setForm({ ...form, materias_origen: items })}
+                    placeholder="Buscar materias de origen..."
+                    error={errors.materias_origen}
+                    materias={origenMaterias}
+                  />
+                </div>
+
+                <div className="space-y-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                  <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Destino
+                  </h5>
+                  <div>
+                    <Label htmlFor="plan_destino">Plan Destino</Label>
+                    <select
+                      id="plan_destino"
+                      value={form.plan_destino}
+                      onChange={(e) =>
+                        setForm({ ...form, plan_destino: e.target.value, materias_destino: [] })
+                      }
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                    >
+                      <option value="">Seleccionar plan...</option>
+                      {planes.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.carrera_nombre} - {p.codigo}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.plan_destino && (
+                      <p className="mt-1 text-xs text-error-500">
+                        {errors.plan_destino}
+                      </p>
+                    )}
+                  </div>
+                  <MateriaMultiSelect
+                    label="Materias Destino"
+                    selected={form.materias_destino}
+                    onChange={(items) => setForm({ ...form, materias_destino: items })}
+                    placeholder="Buscar materias de destino..."
+                    error={errors.materias_destino}
+                    materias={destinoMaterias}
+                  />
+                </div>
               </div>
-
-              <MateriaMultiSelect
-                label="Materias Origen"
-                selected={form.materias_origen}
-                onChange={(items) => setForm({ ...form, materias_origen: items })}
-                placeholder="Buscar materias de origen..."
-                error={errors.materias_origen}
-                materias={materias}
-              />
-
-              <MateriaMultiSelect
-                label="Materias Destino"
-                selected={form.materias_destino}
-                onChange={(items) => setForm({ ...form, materias_destino: items })}
-                placeholder="Buscar materias de destino..."
-                error={errors.materias_destino}
-                materias={materias}
-              />
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -184,6 +184,8 @@ class Materia(models.Model):
     contenidos_minimos = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
+        if self.periodo:
+            self.periodo = self.periodo.strip().upper()
         if self.periodo and not self.cuatrimestre:
             self.cuatrimestre = derivar_cuatrimestre(self.periodo)
         super().save(*args, **kwargs)
