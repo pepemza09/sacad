@@ -14,9 +14,10 @@ Sistema de gestión académica para la Facultad de Ciencias Económicas (UNCuyo)
 
 ## Requisitos
 
-- Docker y Docker Compose
+- **Docker** y **Docker Compose** (recomendado)
+- **Podman** y **podman-compose** (alternativa, sin Docker Desktop)
 
-## Inicio rápido
+## Inicio rápido con Docker
 
 ```bash
 git clone https://github.com/pepemza09/sacad.git
@@ -33,6 +34,19 @@ docker compose exec backend python manage.py createuser admin@ejemplo.com --pass
 
 Iniciá sesión con ese superuser. Creá grupos desde **Configuración → Roles de usuarios**, asignales permisos de menú, y aprobá usuarios nuevos desde **Configuración → Autorización de usuarios**.
 
+## Inicio rápido con Podman
+
+En sistemas Linux que usan Podman (sin Docker Desktop), los contenedores rootless no pueden bindear puertos menores a 1024. Por eso el frontend corre en el puerto 8080:
+
+```bash
+git clone https://github.com/pepemza09/sacad.git
+cd sacad
+cp .env.example .env
+docker compose -f docker-compose.podman.yml up -d
+```
+
+Creá el superuser y navegá a `http://localhost:8080`.
+
 ## Sidebar
 
 - **Dashboard** — Resumen del sistema
@@ -42,6 +56,7 @@ Iniciá sesión con ese superuser. Creá grupos desde **Configuración → Roles
 - **Planes de Estudio** — CRUD de planes con títulos intermedios
 - **Áreas** — CRUD de áreas curriculares (por plan)
 - **Materias** — CRUD de materias (por plan, con área y tipo)
+- **Docentes** — CRUD de docentes (con CUIT/CUIL, legajo, facultad)
 - **Equivalencias** — Equivalencias entre materias (con consulta N:M)
 - **Configuración**
   - Tipos de Materia — CRUD de tipos
@@ -70,21 +85,35 @@ Iniciá sesión con ese superuser. Creá grupos desde **Configuración → Roles
 
 ## Roles y permisos
 
-| Rol | Puede escribir |
-|-----|---------------|
-| Admin Universidad | Facultades |
-| Secretario Académico | Sedes, Carreras, Planes, Áreas, Tipos de Materia |
-| Director Carrera | Materias, Correlatividades |
+Los permisos se gestionan por menú mediante el modelo `GroupMenuPermission`. Cada grupo tiene permisos de lectura/escritura para cada uno de los 14 menús del sistema. No hay hardcoding de nombres de grupo.
 
-Los botones de crear/editar/eliminar se ocultan en el frontend según el rol del usuario.
+| Menú | Clave |
+|------|-------|
+| Dashboard | `dashboard` |
+| Facultades | `facultades` |
+| Sedes | `sedes` |
+| Carreras | `carreras` |
+| Planes de Estudio | `planes` |
+| Áreas | `areas` |
+| Materias | `materias` |
+| Docentes | `docentes` |
+| Equivalencias | `equivalencias` |
+| Configuración (hub) | `configuracion` |
+| Config. - Autorización usuarios | `configuracion.usuarios` |
+| Config. - Dominios permitidos | `configuracion.dominios` |
+| Config. - Roles de usuarios | `configuracion.roles` |
+| Config. - Tipos de Materia | `configuracion.tipos-materia` |
+
+Los botones de crear/editar/eliminar se ocultan en el frontend según los permisos del usuario. Un superusuario tiene acceso completo.
 
 ## Modelo de datos
 
 ```
 Facultad ──┬── Sede
-           └── Carrera ── PlanEstudio ──┬── Area
-                                        ├── Materia ── TipoMateria
-                                        └── Correlatividad
+           ├── Carrera ── PlanEstudio ──┬── Area
+           │                            ├── Materia ── TipoMateria
+           │                            └── Correlatividad
+           └── Docente
 
 Equivalencia: materias_origen (M:N) ──>> materias_destino (M:N), por plan_destino
 ```
@@ -105,6 +134,7 @@ Ninguna entidad con dependencias puede eliminarse. El backend responde con `409 
 - **Área** protegida si tiene materias
 - **Materia** protegida si tiene correlativas o equivalencias
 - **Tipo de Materia** protegido si tiene materias
+- **Docente** se puede eliminar libremente (sin dependencias)
 
 ## Comandos útiles
 
@@ -120,10 +150,31 @@ make shell    # shell_plus de Django
 make backup   # Backup de BD
 ```
 
-### Reconstruir frontend tras cambios
+### Podman (alternativa)
 
 ```bash
+make podman-up   # Levantar con Podman (frontend en :8080)
+make podman-down # Bajar servicios Podman
+```
+
+### Reconstruir servicios tras cambios en código
+
+El código del backend está **baked dentro de la imagen Docker** (no hay bind mount). Un simple `restart` no toma cambios:
+
+```bash
+# Backend (Python)
+docker compose build backend && docker compose up -d backend
+
+# Frontend (TypeScript)
 docker compose build frontend && docker compose up -d frontend
+```
+
+### Seed data
+
+```bash
+docker compose exec backend python manage.py crear_admin
+docker compose exec backend python manage.py poblar_demo
+docker compose exec backend python manage.py cargar_planes_2026
 ```
 
 ### Shell de Django
@@ -189,7 +240,9 @@ docker compose up -d
 
 El entrypoint del backend ejecuta `makemigrations --noinput && migrate` en cada inicio, por lo que las nuevas migraciones se aplican automáticamente sin intervención manual.
 
-> **Importante:** si se agrega un campo con `null=False` y sin `default` a una tabla con datos existentes, la migración fallará. En ese caso hay que:
+> **Importante:** el código del backend está baked en la imagen Docker. Los cambios en `models.py`, `views.py`, etc. requieren `docker compose build backend && docker compose up -d backend`. No alcanza con `restart`.
+
+> **Campos NOT NULL:** si se agrega un campo con `null=False` y sin `default` a una tabla con datos existentes, la migración fallará. En ese caso hay que:
 > 1. Agregar el campo con `null=True` o un `default`
 > 2. Hacer `makemigrations` y `migrate`
 > 3. Poblar el campo en los registros existentes vía `data migration` o shell
@@ -229,13 +282,17 @@ make backup
 | Renombrar un campo | Django no detecta el rename, crea campo nuevo + elimina viejo (pérdida de datos) | Hacer `migrate --empty` + `RenameField` manual |
 | Eliminar una tabla/modelo | Borra todos los datos permanentemente | Hacer backup antes de eliminar |
 
-### Seed data (idempotente)
+### Seed data
 
-El comando `seed_data` usa `get_or_create`, por lo que es seguro ejecutarlo múltiples veces sin duplicar registros:
+Hay tres comandos disponibles para cargar datos de prueba. Todos son idempotentes (usan `get_or_create`):
 
 ```bash
-docker compose exec backend python manage.py seed_data
+docker compose exec backend python manage.py crear_admin
+docker compose exec backend python manage.py poblar_demo
+docker compose exec backend python manage.py cargar_planes_2026
 ```
+
+La base de datos inicia vacía. No hay seed data automática al levantar el sistema.
 
 ## Producción
 

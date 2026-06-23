@@ -40,6 +40,7 @@
     "deployment_options": {
       "development": "docker compose up -d (reads .env, uses development settings)",
       "production": "docker compose -f docker-compose.prod.yml up -d (production settings, SSL-ready)",
+      "podman": "docker compose -f docker-compose.podman.yml up -d (frontend on port 8080, no root needed)",
       "local_backend": "make dev-backend (python manage.py runserver)",
       "local_frontend": "make dev-frontend (npm run dev with proxy to localhost:8000)"
     }
@@ -76,7 +77,7 @@
         "DEBUG": "from env, default False",
         "ALLOWED_HOSTS": "comma-separated from env, default *",
         "DATABASES": "PostgreSQL, configured via env vars",
-        "INSTALLED_APPS": ["django.contrib.admin", "auth", "contenttypes", "sessions", "messages", "staticfiles", "sites", "rest_framework", "rest_framework_simplejwt", "corsheaders", "django_filters", "drf_spectacular", "allauth", "allauth.account", "allauth.socialaccount", "allauth.socialaccount.providers.google", "sacad.apps.academica", "sacad.apps.usuarios", "sacad.apps.equivalencias"],
+            "INSTALLED_APPS": ["django.contrib.admin", "auth", "contenttypes", "sessions", "messages", "staticfiles", "sites", "rest_framework", "rest_framework_simplejwt", "corsheaders", "django_filters", "drf_spectacular", "allauth", "allauth.account", "allauth.socialaccount", "allauth.socialaccount.providers.google", "sacad.apps.academica", "sacad.apps.usuarios", "sacad.apps.equivalencias", "sacad.apps.docentes"],
         "MIDDLEWARE": ["corsheaders", "security", "sessions", "common", "csrf", "auth", "messages", "clickjacking", "allauth.account"],
         "REST_FRAMEWORK": {
           "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
@@ -133,7 +134,7 @@
       "api/schema/": "drf_spectacular schema",
       "api/docs/": "Swagger UI",
       "api/auth/": "usuarios app (JWT login, Google callback, etc.)",
-      "api/": ["academica app (facultades, sedes, carreras, planes, materias, correlatividades, dashboard)", "equivalencias app"],
+      "api/": ["academica app (facultades, sedes, carreras, planes, materias, correlatividades, dashboard)", "equivalencias app", "docentes app"],
       "accounts/": "allauth URLs (Google OAuth flow)",
       "debug toolbar + media": "only when DEBUG=True"
     },
@@ -268,9 +269,43 @@
             "carreras_por_facultad": "{facultad_nombre: count}",
             "materias_por_año": "{año: count} (from vigente plans only)",
             "ultimos_planes": "top 10 by año_aprobacion desc"
-          }
-        }
       },
+      "docentes": {
+        "models": {
+          "Docente": {
+            "fields": {
+              "apellido": "CharField(max_length=100)",
+              "nombre": "CharField(max_length=100)",
+              "dni": "CharField(max_length=20, unique=True)",
+              "cuit_cuil": "CharField(max_length=13, unique=True, null=True, blank=True, format XX-XXXXXXXX-X)",
+              "legajo": "CharField(max_length=50, blank=True, default='')",
+              "legajo_en_tramite": "BooleanField(default=False)",
+              "email": "EmailField(blank=True, default='')",
+              "telefono": "CharField(max_length=50, blank=True, default='')",
+              "facultad": "ForeignKey(Facultad, CASCADE, related_name='docentes')",
+              "activo": "BooleanField(default=True)"
+            },
+            "ordering": ["apellido", "nombre"],
+            "verbose_name": "Docente/Docentes",
+            "legajo_display": "property: if legajo_en_tramite → 'En trámite', else legajo or '—'"
+          }
+        },
+        "serializers": {
+          "DocenteSerializer": "all fields, validates dni uniqueness, email format, cuit_cuil regex ^\\d{2}-\\d{8}-\\d{1}$, facultad display name"
+        },
+        "views": {
+          "DocenteViewSet": "ModelViewSet. select_related('facultad'). Read: any auth user with menu_key docentes read permission. Write: requires menu_key docentes write permission. SearchFields: apellido, nombre, dni. Filter: activo"
+        },
+        "permissions": {
+          "read": "tiene_permiso_menu(user, 'docentes', require_read=True)",
+          "write": "is_superuser OR tiene_permiso_menu(user, 'docentes', require_write=True)"
+        },
+        "urls": {
+          "router": "docentes"
+        }
+      }
+    }
+  },
       "usuarios": {
         "models": {
           "Profile": {
@@ -423,8 +458,16 @@
         "/sedes": "SedesPage",
         "/carreras": "CarrerasPage",
         "/planes": "PlanesPage",
+        "/areas": "AreasPage",
         "/materias": "MateriasPage",
+        "/docentes": "DocentesPage",
         "/equivalencias": "EquivalenciasPage",
+        "/configuracion": "ConfiguracionPage",
+        "/configuracion/tipos-materia": "GestionTiposMateriaPage",
+        "/configuracion/dominios": "GestionDominiosPage",
+        "/configuracion/roles": "GestionRolesPage",
+        "/configuracion/usuarios": "AutorizacionUsuariosPage",
+        "/buscar": "SearchPage",
         "/profile": "ProfilePage"
       }
     },
@@ -510,6 +553,26 @@
         "consulta": "inputs for materia_origen_id + plan_destino_id → GET /equivalencias/consultar/ → shows results list",
         "registered_list": "GET /equivalencias/ → shows cards with origen → destino, tipo, plan name",
         "no_breadcrumb": "(uses old-style)"
+      },
+      "AreasPage": {
+        "file": "AreasPage.tsx",
+        "CRUD": true,
+        "fields": ["plan_estudio (FK select)", "nombre", "orden"],
+        "list_columns": ["Plan de Estudio", "Nombre", "Orden", "Materias (count)", "Acciones"],
+        "filters": ["plan_estudio select"],
+        "delete_flow": "If materias_count>0 → blocked with detail message. Otherwise → confirm → DELETE /areas/:id",
+        "breadcrumb": "Dotted Divider (Home · Áreas)"
+      },
+      "DocentesPage": {
+        "file": "DocentesPage.tsx",
+        "CRUD": true,
+        "fields": ["apellido", "nombre", "dni", "cuit_cuil (XX-XXXXXXXX-X, nullable)", "legajo + legajo_en_tramite (checkbox)", "email", "telefono", "facultad (FK searchable dropdown)", "activo (Switch)"],
+        "list_columns": ["Apellido", "Nombre", "DNI", "CUIT/CUIL", "Legajo", "Email", "Teléfono", "Facultad", "Estado", "Acciones"],
+        "filters": ["search box (apellido/nombre/dni)", "status dropdown (Todos/Activos/Inactivos)"],
+        "modal_layout": "90vw with grid-cols-4: facultad (col-span-2), row of 4 (apellido/nombre/dni/cuit_cuil), row (legajo+checkbox/email/telefono), activo switch at bottom",
+        "form_validation": "client-side required fields + server error mapping per field + general error banner for non-field/connection errors",
+        "delete_flow": "Confirmation modal → DELETE /docentes/:id",
+        "conditional_buttons": "Agregar/Editar/Eliminar hidden unless is_superuser or canWriteMenu('docentes')"
       },
       "ProfilePage": {
         "file": "ProfilePage.tsx",
@@ -603,8 +666,9 @@
     "FRONTEND_URL": "http://localhost or http://localhost:80"
   },
   "docker_compose_files": {
-    "docker-compose.yml": "Development. 3 services: db, backend, frontend. Frontend on port 80. Backend on port 8000. Variables from .env with defaults",
-    "docker-compose.prod.yml": "Production. No defaults required (all vars must be in .env). Restart: unless-stopped. Backups volume mounted. No debug toolbar"
+    "docker-compose.yml": "Development. 4 services: db, redis, backend, frontend. Frontend on port 80. Backend on port 8000. Variables from .env with defaults",
+    "docker-compose.prod.yml": "Production. No defaults required (all vars must be in .env). Restart: unless-stopped. Backups volume mounted. No debug toolbar",
+    "docker-compose.podman.yml": "Podman variant. Frontend on port 8080 (podman rootless cannot bind <1024). FRONTEND_URL defaults to http://localhost:8080"
   },
   "public_assets": {
     "logos": {
@@ -628,7 +692,9 @@
     "migrate": "docker compose exec backend python manage.py migrate",
     "shell": "docker compose exec backend python manage.py shell_plus",
     "backup": "pg_dump via docker compose exec db",
-    "restore": "pg_restore via docker compose exec db"
+    "restore": "pg_restore via docker compose exec db",
+    "podman-up": "docker compose -f docker-compose.podman.yml up -d",
+    "podman-down": "docker compose -f docker-compose.podman.yml down"
   },
   "scripts": {
     "backend/scripts/backup-daily.sh": "Daily database backup script",
@@ -648,6 +714,12 @@
     "Zoom applied via fontSize on <html> (scales rem of Tailwind) instead of CSS transform/zoom for layout compatibility",
     "group_names (string[]) exposed in UserSerializer instead of numeric group IDs so frontend can do semantic comparisons without ID-to-name mapping",
     "Auto-assign Director Carrera on approve_user ensures newly approved Google users always have at least basic write access (materias)",
-    "Frontend buttons hidden (not disabled) for users without permission to avoid clutter and reduce confusion"
+    "Frontend buttons hidden (not disabled) for users without permission to avoid clutter and reduce confusion",
+    "cuit_cuil nullable (null=True) to avoid unique constraint collision with empty strings; Django doesn't compare NULLs",
+    "Docentes permissions via menu_key 'docentes' with read/write, no group name hardcoding",
+    "GroupMenuPermission model replaces group-name-based permission logic; 14 menu keys defined",
+    "Backend source baked into Docker image (no bind mount cached). Changes require 'docker compose build backend && docker compose up -d backend'",
+    "Entrypoint auto-generates migration for menu_key choices changes when new menu keys added to model",
+    "Voseo mandatory in all error messages ('Completá', 'tenés', 'seleccioná')"
   ]
 }
