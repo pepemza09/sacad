@@ -17,12 +17,13 @@ sacad/
 ├── backend/
 │   ├── sacad/
 │   │   ├── settings/         # base.py, development.py, production.py
-│   │   ├── urls.py           # Rutas raíz (admin, api/auth/, api/ academica + equivalencias, accounts/)
+│   │   ├── urls.py           # Rutas raíz (admin, api/auth/, api/ academica + equivalencias + docentes, accounts/)
 │   │   ├── celery.py         # Placeholder (vacio)
 │   │   └── apps/
 │   │       ├── academica/    # Facultades, Sedes, Carreras, Planes, Materias, Correlatividades, TipoMateria, Area
 │   │       ├── usuarios/     # Auth, Profile, AllowedDomain, Google OAuth
-│   │       └── equivalencias/# Equivalencias entre materias + motor de resolución en cascada
+│   │       ├── equivalencias/# Equivalencias entre materias + motor de resolución en cascada
+│   │       └── docentes/     # Docentes (CRUD completo con CUIT/CUIL, legajo)
 │   └── manage.py
 ├── frontend/
 │   ├── src/
@@ -39,6 +40,7 @@ sacad/
 │   └── package.json
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
+├── docker-compose.podman.yml # Podman variant (frontend on 8080)
 ├── Makefile
 ├── spec.json                 # Especificación completa del proyecto (ligeramente desactualizada)
 └── .env.example
@@ -47,9 +49,12 @@ sacad/
 ## Enlaces rápidos
 
 - **Frontend páginas SACAD**: `frontend/src/pages/SACAD/`
-- **Backend models**: `backend/sacad/apps/academica/models.py`
-- **Backend serializers**: `backend/sacad/apps/academica/serializers.py`
-- **Backend views**: `backend/sacad/apps/academica/views.py`
+- **Backend docentes models**: `backend/sacad/apps/docentes/models.py`
+- **Backend docentes serializers**: `backend/sacad/apps/docentes/serializers.py`
+- **Backend docentes views**: `backend/sacad/apps/docentes/views.py`
+- **Backend academica models**: `backend/sacad/apps/academica/models.py`
+- **Backend academica serializers**: `backend/sacad/apps/academica/serializers.py`
+- **Backend academica views**: `backend/sacad/apps/academica/views.py`
 - **Backend permissions**: `backend/sacad/apps/academica/permissions.py`
 - **Backend usuarios permissions (tiene_permiso_menu)**: `backend/sacad/apps/usuarios/permissions.py`
 - **Backend filtros**: `backend/sacad/apps/academica/filters.py`
@@ -74,8 +79,14 @@ sacad/
 | `PlanEstudio` | carrera (FK), codigo, version, titulo_otorga, duracion_anos, año_inicio_implementacion, vigente, titulos_intermedios (M2M) | unique_together: (carrera, codigo) |
 | `TipoMateria` | nombre (unique), activo | — |
 | `Area` | plan_estudio (FK), nombre, orden | unique_together: (plan_estudio, nombre). Creado DESPUÉS de TipoMateria en models.py |
-| `Materia` | plan_estudio (FK), codigo, nombre, año, cuatrimestre (1/2/anual), creditos, periodo, carga_horaria_semanal, carga_horaria_total, tipo (FK->TipoMateria), area (FK->Area, SET_NULL), contenidos_minimos | unique_together: (plan_estudio, codigo) |
+| `Materia` | plan_estudio (FK), codigo, nombre, año, cuatrimestre (1/2/anual), creditos, periodo, carga_horaria_semanal (null=True), carga_horaria_total, tipo (FK->TipoMateria, null=True), area (FK->Area, SET_NULL), contenidos_minimos | unique_together: (plan_estudio, codigo) |
 | `Correlatividad` | materia (FK), materia_requerida (FK), tipo (cursar/cursado/aprobar/aprobacion/regular) | unique_together: (materia, materia_requerida, tipo). Valida mismo plan_estudio |
+
+### docentes
+
+| Modelo | Campos clave | Relaciones |
+|--------|-------------|------------|
+| `Docente` | apellido, nombre, dni (unique), cuit_cuil (unique, null=True), legajo, legajo_en_tramite, email, telefono, facultad (FK->Facultad), activo | — |
 
 ### usuarios
 
@@ -83,7 +94,7 @@ sacad/
 |--------|-------------|
 | `Profile` | user (OneToOne), foto, approval_status (pending/approved/rejected), approved_at, rejected_at, zoom_level (50-200) |
 | `AllowedDomain` | domain (unique), created_at |
-| `GroupMenuPermission` | group (FK->Group), menu_key (str), can_read, can_write | unique_together: (group, menu_key). 13 menús definidos en `GroupMenuPermission.MENU_KEYS`. |
+| `GroupMenuPermission` | group (FK->Group), menu_key (str), can_read, can_write | unique_together: (group, menu_key). 14 menús definidos en `GroupMenuPermission.MENU_KEYS`. |
 
 ### equivalencias
 
@@ -109,7 +120,7 @@ sacad/
 | `/users/` | GET | Staff / configuracion.usuarios read | Lista usuarios |
 | `/users/<id>/groups/` | PATCH | Staff / configuracion.usuarios write | Asignar grupos |
 | `/pending-users/` | GET | Staff / configuracion.usuarios read | Usuarios pendientes |
-| `/approve-user/<id>/` | PATCH | Staff / configuracion.usuarios write | Aprobar (auto-asigna Director Carrera) |
+| `/approve-user/<id>/` | PATCH | Staff / configuracion.usuarios write | Aprobar (asigna primer grupo disponible) |
 | `/reject-user/<id>/` | PATCH | Staff / configuracion.usuarios write | Rechazar |
 | `/deactivate-user/<id>/` | PATCH | Staff / configuracion.usuarios write | Desactivar usuario |
 | `/allowed-domains/` | GET/POST | Staff / configuracion.dominios read/write | CRUD dominios |
@@ -135,6 +146,7 @@ sacad/
 | `/tipos-materia/` | TipoMateriaViewSet | Auth | Secretario Académico |
 | `/areas/` | AreaViewSet | Auth | Secretario Académico |
 | `/dashboard/stats/` | Function GET | Auth | — |
+| `/docentes/` | DocenteViewSet | Auth (via menu_key "docentes" read) | Auth (via menu_key "docentes" write) |
 
 ### Equivalencias (`/api/`)
 | Endpoint | Método | Descripción |
@@ -151,6 +163,7 @@ sacad/
 | `EsAdminUniversidad` | `is_superuser OR tiene_permiso_menu(user, "facultades", require_write=True)` | Facultad write |
 | `EsSecretarioAcademico` | `is_superuser OR tiene_permiso_menu(user, "sedes"/"carreras"/etc, require_write=True)` | Sede, Carrera, Plan, TipoMateria, Area write |
 | `EsDirectorCarrera` | `is_superuser OR tiene_permiso_menu(user, "materias", require_write=True)` | Materia, Correlatividad write |
+| `DocenteViewSet` | `is_superuser OR tiene_permiso_menu(user, "docentes", require_write=True)` para write; `tiene_permiso_menu(user, "docentes", require_read=True)` para read | Docentes CRUD |
 
 No hay hardcoding de nombres de grupo (`"Admin Universidad"`, `"Secretario Académico"`, `"Director Carrera"`) en ninguna permission class. Todo pasa por `GroupMenuPermission`.
 
@@ -169,6 +182,7 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | TipoMateriaViewSet | TipoMateriaSerializer (único) | TipoMateriaSerializer |
 | AreaViewSet | AreaSerializer (con plan_estudio_codigo, materias_count) | AreaSerializer |
 | EquivalenciaViewSet | EquivalenciaSerializer (único) | EquivalenciaSerializer |
+| DocenteViewSet | DocenteSerializer (único) | DocenteSerializer |
 
 ## Backend — Filtros (django-filters)
 
@@ -181,6 +195,7 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | MateriaFilter | Materia | plan_estudio (exact), codigo (exact/icontains), nombre (icontains), año, cuatrimestre, creditos (exact/gte/lte), periodo, tipo (tipo__id) |
 | CorrelatividadViewSet | — | Sin filtros |
 | EquivalenciaViewSet | — | Filtro manual por plan_destino, materia_origen en get_queryset() |
+| DocenteViewSet | — | SearchFields: apellido, nombre, dni. Filtro GET `?activo=true/false`. |
 
 ## Frontend — Páginas y estado
 
@@ -194,6 +209,7 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | Planes de Estudio | `pages/SACAD/PlanesPage.tsx` | `/planes` |
 | Áreas | `pages/SACAD/AreasPage.tsx` | `/areas` |
 | Materias | `pages/SACAD/MateriasPage.tsx` | `/materias` |
+| Docentes | `pages/SACAD/DocentesPage.tsx` | `/docentes` |
 | Equivalencias | `pages/SACAD/EquivalenciasPage.tsx` | `/equivalencias` |
 | Tipos de Materia | `pages/SACAD/GestionTiposMateriaPage.tsx` | `/configuracion/tipos-materia` |
 | Dominios permitidos | `pages/SACAD/GestionDominiosPage.tsx` | `/configuracion/dominios` |
@@ -251,21 +267,25 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
   - Título + descripción en el header del modal
   - Campos de formulario con `<label>` + `<input>` + mensaje de error
   - Botones Cancelar + "Crear X" / "Guardar cambios" al fondo (flex justify-end)
-  - Modal independiente para delete confirmation
-- **Permisos condicionales**: `canWrite = user?.is_superuser || user?.group_names?.includes("Rol") || canWriteMenu("menuKey")` donde `canWriteMenu` viene de `useMenuPermissions()`
-- **Manejo de errores**: Catch axios error → mapear `response.data` a `FieldErrors`
+  - Modal independiente para delete confirmation (pregunta + botones "Eliminar" / "Cancelar")
+- **Permisos condicionales**: `canWrite = user?.is_superuser || canWriteMenu("menuKey")` donde `canWriteMenu` viene de `useMenuPermissions()`
+- **Manejo de errores**: Catch axios error → try `err.response.data` key mapping a `FieldErrors`; si no tiene estructura de campos, mostrar `err.response?.data?.detail || err.message` como error general del formulario.
 - **Modal crece con `max-w-[90vw]`** en lugar de `!w-[90vw]` para cascada correcta
-- **Busqueda de FK en modales**: dropdown con `useRef` + `handleClickOutside` + filtro local
+- **Búsqueda de FK en modales**: dropdown con `useRef` + `handleClickOutside` + filtro local
+- **Grid en modales anchos**: para modales de 90vw, usar `grid grid-cols-4 gap-4` con `col-span-2` para campos largos (ej: facultad). Dentro del grid, inputs pueden ir en filas de 4 campos (apellido, nombre, dni, cuit_cuil en una misma fila).
+- **Delete handler**: `handleDelete` debe mostrar `err.response.data.detail` si existe, sino mensaje hardcodeado genérico.
 
 ## Backend — Convenciones de código
 
-- **ViewSets**: `ModelViewSet` con `get_serializer_class()` para list vs detail. Cada ViewSet define sus propios permisos y filtros.
-- **Permissions**: `get_permissions()` method que retorna distintas clases por acción
+- **ViewSets**: `ModelViewSet` con `get_serializer_class()` para list vs detail (cuando aplica). Cada ViewSet define sus propios permisos y filtros.
+- **Permissions**: `get_permissions()` method que retorna distintas clases por acción, o chequea `tiene_permiso_menu()` directamente dentro del ViewSet con método propio (usando `request.user` y `self.action`).
 - **Protected delete**: NO se usa `raise ProtectedError(msg, queryset)`. En su lugar, se captura `IntegrityError` o se verifica manualmente y se retorna `Response({"detail": msg}, 409)`.
-- **Serializers**: List serializers separados con counts via `SerializerMethodField`
-- **Filtros**: `django-filters` FilterSets con `DjangoFilterBackend`
+- **Serializers**: List serializers separados con counts via `SerializerMethodField` (cuando hay diferencia entre list y detail).
+- **Filtros**: `django-filters` FilterSets con `DjangoFilterBackend` o SearchFilter + ordering.
+- **CUIT/CUIL**: validación con regex `^\d{2}-\d{8}-\d{1}$` en serializer (DRF `RegexValidator`). Campo `null=True` para permitir múltiples vacíos con `unique=True`.
 - **Voseo**: Todos los mensajes de error usan "vos" (ej: "Completá", "seleccioná", "tenés"). No usar "tú" ni "usted".
-- **No necesitás makemigrations**: las migraciones actuales (0001 a 0005) están en el repo. El entrypoint `makemigrations --noinput` solo se fija si hay cambios nuevos. Hoy no hay cambios pendientes.
+- **No necesitás makemigrations manual**: el entrypoint del container ya ejecuta `makemigrations --noinput` al arrancar. Si hay cambios en models.py, se generan automáticamente. En desarrollo local, `makemigrations` solo se corre si se quiere trackear migraciones.
+- **Importante backend**: el código fuente del backend se copia dentro de la imagen Docker. NO hay bind mount cached. Para que un cambio en backend surta efecto, hay que hacer `docker compose build backend && docker compose up -d backend`. No alcanza con restart.
 - **No hay seed data**: los seeders fueron eliminados. La DB está vacía (flush). Para probar hay que cargar datos manualmente desde el frontend.
 - **seed*.py están gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` no se trackea.
 
@@ -294,7 +314,7 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - **seed_data command**: `backend/sacad/apps/academica/management/commands/seed_data.py`. Idempotente (get_or_create). Carga superuser, facultad, sedes, carrera, título intermedio, plan 2026, tipo materia, 8 áreas, 35 materias. Forzado en git con `git add -f`.
 - **AreasPage**: convertida de formulario inline a `<Modal>`, siguiendo el mismo patrón de PlanesPage (useModal, closeModal que resetea estado, botones al fondo).
 - **Sidebar**: agregado "Áreas" entre "Planes de Estudio" y "Materias". Ruta `/areas` en App.tsx entre `/planes` y `/materias`.
-- **GroupMenuPermission model**: modelo `GroupMenuPermission` con group (FK), menu_key (str con choices de 13 menús), can_read, can_write. unique_together (group, menu_key). Migración 0002.
+- **GroupMenuPermission model**: modelo `GroupMenuPermission` con group (FK), menu_key (str con choices de 13 menús iniciales), can_read, can_write. unique_together (group, menu_key). Migración 0002.
 - **Backend permisos por menú**: todas las vistas de `usuarios/views.py` ahora verifican `tiene_permiso_menu()` (en `usuarios/permissions.py`) además de `is_staff`. Las permission classes de `academica/permissions.py` (`EsAdminUniversidad`, `EsSecretarioAcademico`, `EsDirectorCarrera`) también verifican `GroupMenuPermission`.
 - **EquivalenciaViewSet**: protegido para escritura con `tiene_permiso_menu("equivalencias", require_write=True)`.
 - **Frontend useMenuPermissions hook**: hook que expone `canRead(key)` y `canWrite(key)` desde `GET /auth/groups/me/permissions/`.
@@ -312,6 +332,13 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - **`approve_user()`**: eliminada referencia a "Director Carrera". Asigna primer grupo disponible.
 - **Pipeline CI/CD**: usa `docker compose down --remove-orphans` en vez de `docker rm -f`.
 - **GestionRolesPage**: eliminado `GROUP_COLORS` hardcodeado y placeholder "Secretario Académico".
+- **Docentes app**: app `sacad.apps.docentes` creada con modelo `Docente` (apellido, nombre, dni unique, cuit_cuil unique+nullable, legajo, legajo_en_tramite, email, telefono, facultad FK, activo). DocenteSerializer, DocenteViewSet, DocenteAdmin. URL `/api/docentes/`. Sidebar: categoría "Docentes" con sub-item "Ver Docentes". Ruta `/docentes`.
+- **DocentesPage**: CRUD completo con tabla responsive, modal 90vw con grid 4-columnas, búsqueda de facultad vía dropdown con click-outside, confirmación de eliminación.
+- **Error handling DocentesPage**: muestra errores de campo (cada input con su mensaje rojo) y errores generales (non-field, connection) en un banner al inicio del formulario.
+- **cuit_cuil nullable**: `null=True` agregado a `cuit_cuil` en Docente model para evitar colisión de `unique` con strings vacías. Migración `0002_alter_docente_cuit_cuil`.
+- **Menu keys**: agregado `("docentes", "Docentes")` a `GroupMenuPermission.MENU_KEYS` (ahora 14 opciones). Migración `0003_alter_groupmenupermission_menu_key` en usuarios.
+- **Podman support**: `docker-compose.podman.yml` con frontend en puerto 8080 (podman rootless no puede bind < 1024). `FRONTEND_URL` default `http://localhost:8080`. Makefile targets `podman-up` / `podman-down`.
+- **Backend container rebuild note**: el código backend está baked en la imagen Docker (no hay bind mount cached). Para cambios en backend, siempre: `docker compose build backend && docker compose up -d backend`. Los cambios en models.py generan migraciones automáticas por el entrypoint.
 
 ## Próximas tareas lógicas
 
@@ -343,13 +370,20 @@ Para cursar cuarto año → 100% hasta 2do año aprobado + 4 espacios de 3er añ
 
 ### 5. Verificar permisos en producción
 - victor.costa@fce.uncu.edu.ar tiene `is_staff=False`, grupo "administrador", `can_write=True` en todos los menús.
-- Verificar que pueda crear/editar/eliminar en todos los módulos (facultades, sedes, carreras, planes, áreas, materias, equivalencias, tipos-materia, dominios, roles, usuarios).
+- Verificar que pueda crear/editar/eliminar en todos los módulos (facultades, sedes, carreras, planes, áreas, materias, docentes, equivalencias, tipos-materia, dominios, roles, usuarios).
 - Verificar que un usuario sin permisos no pueda escribir ni vea menús restringidos.
 
-## Comandos útiles
+### 6. MateriasPage — filtro por plan de estudio
+- El backend ya soporta filtro `?plan_estudio=X` via `MateriaFilter`
+- El frontend no expone este filtro en la UI
 
-> [!NOTE]
-> Dado que el entorno de desarrollo corre en WSL y el host es Windows, todos los comandos de `docker compose` o `make` deben ejecutarse dentro de la terminal de WSL o prefijarse con `wsl` desde PowerShell (ej: `wsl make up`).
+### 7. Docentes — próximas mejoras posibles
+- Flat sidebar: eliminar categoría "Docentes" con sub-item, poner "Docentes" directamente en nav principal
+- Filtro adicional por facultad en DocentesPage
+- Exportar lista de docentes a CSV/Excel
+- Vista detalle de docente con materias que dicta
+
+## Comandos útiles
 
 ```bash
 make build       # docker compose build
@@ -362,12 +396,19 @@ make dev-backend # cd backend && python manage.py runserver 0.0.0.0:8000
 make dev-frontend # cd frontend && npm run dev
 
 # Inicialización y carga de datos de prueba (Seed Data)
-wsl docker compose exec backend python manage.py crear_admin
-wsl docker compose exec backend python manage.py poblar_demo
-wsl docker compose exec backend python manage.py cargar_planes_2026
+docker compose exec backend python manage.py crear_admin
+docker compose exec backend python manage.py poblar_demo
+docker compose exec backend python manage.py cargar_planes_2026
+
+# Reconstruir backend tras cambios en código Python
+docker compose build backend && docker compose up -d backend
 
 # Reconstruir frontend tras cambios
 docker compose build frontend && docker compose up -d frontend
+
+# Podman (alternativa a Docker Desktop)
+make podman-up
+make podman-down
 
 # Shell de Django
 docker compose exec backend python manage.py shell
@@ -405,6 +446,8 @@ Si una migración falla por conflictos de datos (ej: campo NOT NULL sin default 
 
 **Solo hacer flush cuando se quiera empezar de cero explícitamente** (nunca como paso de una actualización).
 
+**Nota sobre migraciones generadas por entrypoint:** el entrypoint del container ejecuta `makemigrations` automáticamente. Si se genera una migración nueva (ej: `0003_alter_*`) y no está trackeada en git, el container igual funciona pero al hacer `git pull` en otro lado habrá que regenerar o copiar esa migración. Después de cada cambio en models.py, copiar las migraciones del container al host o commitearlas.
+
 ## Notas para agentes futuros
 
 1. **Voseo obligatorio**: todos los mensajes de error del backend y del frontend deben usar "vos". Ej: "Completá los datos", "Seleccioná un plan", "No tenés permiso". NO usar "tú", "usted", "complete", "seleccione".
@@ -420,3 +463,8 @@ Si una migración falla por conflictos de datos (ej: campo NOT NULL sin default 
 11. **`needs_group`**: `UserSerializer` incluye campo `needs_group=True` si el usuario no es superuser y no tiene grupos. `ProtectedRoute` redirige a `/auth/pending?reason=group`. El usuario no puede ingresar hasta tener grupo.
 12. **`createuser` command**: `python manage.py createuser email@ejemplo.com --password x` crea superadmin + Profile APPROVED. No crea grupos ni permisos.
 13. **Materia**: `carga_horaria_semanal` y `tipo` son `null=True, blank=True` desde migración 0005.
+14. **Docente.cuit_cuil**: tiene `null=True` además de `unique=True`. Esto permite que múltiples docentes tengan CUIT/CUIL vacío sin violar la restricción unique (Django no compara NULLs).
+15. **Grupos de menú**: hoy son 14 menús: dashboard, facultades, sedes, carreras, planes, areas, materias, docentes, equivalencias, configuracion, configuracion.usuarios, configuracion.dominios, configuracion.roles, configuracion.tipos-materia.
+16. **Backend rebuild**: el código fuente del backend está baked en la imagen Docker (no hay bind mount cached). `docker compose restart backend` NO toma cambios de código. Siempre usar `docker compose build backend && docker compose up -d backend`.
+17. **DocentesPage CRUD pattern**: modal 90vw con grid `grid-cols-4`. Facultad ocupa `col-span-2` (selector con dropdown búscable). Luego fila de 4: apellido, nombre, dni, cuit_cuil (con guiones automáticos). Luego fila incompleta: legajo+checkbox, email, telefono. Switch activo/inactivo al fondo. Errores de API se muestran tanto por campo como en un banner general. Errores de conexión se muestran como banner "Error de conexión".
+18. **Menu keys migration**: al agregar un nuevo menu_key a `GroupMenuPermission.MENU_KEYS`, el entrypoint genera una migración `AlterField(choices=...)`. Esta migución debe ser copiada del container al host y commiteada. Si no se commitea, en otro entorno se regenerará automáticamente.
