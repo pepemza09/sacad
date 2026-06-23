@@ -22,7 +22,7 @@ interface Designacion {
 const TABS: { key: Tab; label: string; endpoint: string; title: string; desc: string }[] = [
   { key: "cargos", label: "Cargos", endpoint: "/cargos/", title: "Cargos", desc: "Configurá los cargos docentes." },
   { key: "dedicaciones", label: "Dedicaciones", endpoint: "/dedicaciones/", title: "Dedicaciones", desc: "Configurá las dedicaciones docentes." },
-  { key: "caracteres", label: "Caracteres", endpoint: "/caracteres/", title: "Caracteres", desc: "Configurá los caracteres de designación." },
+  { key: "caracteres", label: "Caracteres", endpoint: "/caracteres/",   title: "Carácter", desc: "Configurá los caracteres de designación (interino, efectivo, etc.)." },
 ];
 
 function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: boolean }) {
