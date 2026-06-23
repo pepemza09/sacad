@@ -2,6 +2,48 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 
+class Cargo(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    descripcion = models.CharField(max_length=255)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Cargo"
+        verbose_name_plural = "Cargos"
+        ordering = ["codigo"]
+
+    def __str__(self):
+        return self.descripcion
+
+
+class Dedicacion(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    descripcion = models.CharField(max_length=255)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Dedicación"
+        verbose_name_plural = "Dedicaciones"
+        ordering = ["codigo"]
+
+    def __str__(self):
+        return self.descripcion
+
+
+class Caracter(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    descripcion = models.CharField(max_length=255)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Carácter"
+        verbose_name_plural = "Caracteres"
+        ordering = ["codigo"]
+
+    def __str__(self):
+        return self.descripcion
+
+
 class Docente(models.Model):
     apellido = models.CharField(max_length=100)
     nombre = models.CharField(max_length=100)

@@ -12,12 +12,14 @@ MENU_KEYS = [
     ("planes", "Planes de Estudio"),
     ("areas", "Áreas"),
     ("materias", "Materias"),
+    ("docentes", "Docentes"),
     ("equivalencias", "Equivalencias"),
     ("configuracion", "Configuración"),
     ("configuracion.usuarios", "Config. - Autorización usuarios"),
     ("configuracion.dominios", "Config. - Dominios permitidos"),
     ("configuracion.roles", "Config. - Roles de usuarios"),
     ("configuracion.tipos-materia", "Config. - Tipos de Materia"),
+    ("configuracion.designaciones", "Config. - Designaciones"),
 ]
 
 

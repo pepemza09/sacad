@@ -55,9 +55,16 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <SettingsIcon />,
     name: "Configuración",
-    path: "/configuracion",
+    icon: <SettingsIcon />,
+    subItems: [
+      { name: "Panel", path: "/configuracion" },
+      { name: "Autorización usuarios", path: "/configuracion/usuarios" },
+      { name: "Dominios permitidos", path: "/configuracion/dominios" },
+      { name: "Roles de usuarios", path: "/configuracion/roles" },
+      { name: "Tipos de Materia", path: "/configuracion/tipos-materia" },
+      { name: "Designaciones", path: "/configuracion/designaciones" },
+    ],
   },
 ];
 
@@ -76,6 +83,7 @@ const pathToMenuKey: Record<string, string> = {
   "/configuracion/dominios": "configuracion.dominios",
   "/configuracion/roles": "configuracion.roles",
   "/configuracion/tipos-materia": "configuracion.tipos-materia",
+  "/configuracion/designaciones": "configuracion.designaciones",
 };
 
 const AppSidebar: React.FC = () => {
