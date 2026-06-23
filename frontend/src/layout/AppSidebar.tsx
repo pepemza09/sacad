@@ -51,7 +51,7 @@ const navItems: NavItem[] = [
     name: "Docentes",
     icon: <GroupIcon />,
     subItems: [
-      { name: "Docentes", path: "/docentes" },
+      { name: "Personas", path: "/docentes" },
       { name: "Designaciones", path: "/configuracion/designaciones" },
     ],
   },
