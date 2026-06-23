@@ -71,3 +71,4 @@ backend/**/fixtures/
 
 # Temp
 tmp/
+bck/
