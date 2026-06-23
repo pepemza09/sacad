@@ -45,6 +45,10 @@ jobs:
               docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
             }
 
+            echo "=== Seed data if DB is empty ==="
+            sleep 5
+            docker compose -f docker-compose.prod.yml exec -T backend python manage.py cargar_datos_iniciales || true
+
             echo "=== Clean old images ==="
             docker image prune -f
 
