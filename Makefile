@@ -1,4 +1,4 @@
-.PHONY: help build up down dev-backend dev-frontend logs migrate shell backup restore
+.PHONY: help build up down dev-backend dev-frontend logs migrate shell backup restore podman-up podman-down
 
 help:
 	@echo "SACAD - Sistema de Administración de Carreras, Actividades y Docentes"
@@ -8,6 +8,8 @@ help:
 	@echo "  make up           - Inicia todos los servicios (dev)"
 	@echo "  make prod         - Inicia en modo producción"
 	@echo "  make down         - Detiene todos los servicios"
+	@echo "  make podman-up    - Inicia servicios con Podman"
+	@echo "  make podman-down  - Detiene servicios de Podman"
 	@echo "  make dev-backend  - Inicia backend localmente (sin Docker)"
 	@echo "  make dev-frontend - Inicia frontend localmente (sin Docker)"
 	@echo "  make logs         - Muestra logs de los servicios"
@@ -27,6 +29,12 @@ prod:
 
 down:
 	docker compose down
+
+podman-up:
+	podman compose -f docker-compose.podman.yml up -d
+
+podman-down:
+	podman compose -f docker-compose.podman.yml down
 
 dev-backend:
 	cd backend && python manage.py runserver 0.0.0.0:8000
