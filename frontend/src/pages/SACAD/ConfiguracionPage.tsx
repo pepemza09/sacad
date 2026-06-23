@@ -53,7 +53,7 @@ const configCards = [
       </svg>
     ),
     iconBg: "bg-cyan-500",
-    href: "/configuracion/designaciones",
+    href: "/configuracion/cargos_dedicaciones",
   },
 ];
 

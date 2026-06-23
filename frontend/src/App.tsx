@@ -49,7 +49,7 @@ export default function App() {
               <Route path="/configuracion/dominios" element={<GestionDominiosPage />} />
               <Route path="/configuracion/roles" element={<GestionRolesPage />} />
               <Route path="/configuracion/tipos-materia" element={<GestionTiposMateriaPage />} />
-              <Route path="/configuracion/designaciones" element={<GestionDesignacionesPage />} />
+              <Route path="/configuracion/cargos_dedicaciones" element={<GestionDesignacionesPage />} />
               <Route path="/buscar" element={<SearchPage />} />
             </Route>
           </Route>

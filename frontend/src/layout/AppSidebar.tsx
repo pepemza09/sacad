@@ -52,7 +52,6 @@ const navItems: NavItem[] = [
     icon: <GroupIcon />,
     subItems: [
       { name: "Personas", path: "/docentes" },
-      { name: "Designaciones", path: "/configuracion/designaciones" },
     ],
   },
   {
@@ -77,7 +76,7 @@ const pathToMenuKey: Record<string, string> = {
   "/configuracion/dominios": "configuracion.dominios",
   "/configuracion/roles": "configuracion.roles",
   "/configuracion/tipos-materia": "configuracion.tipos-materia",
-  "/configuracion/designaciones": "configuracion.designaciones",
+  "/configuracion/cargos_dedicaciones": "configuracion.designaciones",
 };
 
 const AppSidebar: React.FC = () => {
