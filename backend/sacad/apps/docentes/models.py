@@ -96,3 +96,31 @@ class Docente(models.Model):
         if self.legajo_en_tramite:
             return "En trámite"
         return self.legajo or "-"
+
+
+class CargoDocente(models.Model):
+    docente = models.ForeignKey(
+        Docente, on_delete=models.CASCADE, related_name="cargos"
+    )
+    materia = models.ForeignKey(
+        "academica.Materia", on_delete=models.PROTECT, related_name="cargos_docentes"
+    )
+    cargo = models.ForeignKey(
+        Cargo, on_delete=models.PROTECT, related_name="cargos_docentes"
+    )
+    dedicacion = models.ForeignKey(
+        Dedicacion, on_delete=models.PROTECT, related_name="cargos_docentes"
+    )
+    caracter = models.ForeignKey(
+        Caracter, on_delete=models.PROTECT, related_name="cargos_docentes"
+    )
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_fin = models.DateField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Cargo de Docente"
+        verbose_name_plural = "Cargos de Docentes"
+        ordering = ["docente__apellido", "docente__nombre", "materia__nombre"]
+
+    def __str__(self):
+        return f"{self.docente} - {self.cargo} en {self.materia}"

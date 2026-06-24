@@ -52,6 +52,7 @@ const navItems: NavItem[] = [
     icon: <GroupIcon />,
     subItems: [
       { name: "Personas", path: "/docentes" },
+      { name: "Cargos", path: "/cargos-personas" },
     ],
   },
   {
@@ -70,6 +71,7 @@ const pathToMenuKey: Record<string, string> = {
   "/areas": "areas",
   "/materias": "materias",
   "/docentes": "docentes",
+  "/cargos-personas": "docentes",
   "/equivalencias": "equivalencias",
   "/configuracion": "configuracion",
   "/configuracion/usuarios": "configuracion.usuarios",

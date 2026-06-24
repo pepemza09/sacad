@@ -1,9 +1,9 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
-from .models import Cargo, Dedicacion, Caracter, Docente
+from .models import Cargo, Dedicacion, Caracter, Docente, CargoDocente
 from .serializers import (
     CargoSerializer, DedicacionSerializer,
-    CaracterSerializer, DocenteSerializer,
+    CaracterSerializer, DocenteSerializer, CargoDocenteSerializer,
 )
 from sacad.apps.usuarios.permissions import tiene_permiso_menu
 
@@ -43,6 +43,24 @@ class CaracterViewSet(viewsets.ModelViewSet):
         read_ok = tiene_permiso_menu(request.user, MENU_KEY, require_write=request.method not in SAFE_METHODS)
         if not read_ok:
             self.permission_denied(request, message="No tenés permiso para ver o modificar designaciones.")
+
+
+class CargoDocenteViewSet(viewsets.ModelViewSet):
+    queryset = CargoDocente.objects.select_related(
+        "docente", "materia__plan_estudio__carrera__facultad",
+        "materia__area", "cargo", "dedicacion", "caracter",
+    ).all()
+    serializer_class = CargoDocenteSerializer
+    search_fields = ["docente__apellido", "docente__nombre", "materia__nombre", "materia__codigo"]
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.method not in SAFE_METHODS:
+            if not tiene_permiso_menu(request.user, "docentes", require_write=True):
+                self.permission_denied(
+                    request,
+                    message="No tenés permiso para modificar cargos docentes.",
+                )
 
 
 class DocenteViewSet(viewsets.ModelViewSet):
