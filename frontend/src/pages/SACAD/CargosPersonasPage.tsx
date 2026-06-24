@@ -4,8 +4,8 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useApiData } from "../../hooks/useApiData";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
-import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
+import Input from "../../components/form/input/InputField";
 import Switch from "../../components/form/switch/Switch";
 import { PencilIcon, TrashBinIcon } from "../../icons";
 import { apiClient } from "../../api";
@@ -13,13 +13,23 @@ import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
 import { formatDate } from "../../utils/dateFormat";
 
+interface MateriaDisplay {
+  id: number;
+  codigo: string;
+  nombre: string;
+  carrera_nombre: string;
+  plan_estudio_codigo: string;
+  area_nombre: string | null;
+  facultad_nombre: string;
+  carrera_id: number;
+}
+
 interface CargoDocente {
   id: number;
   docente: number;
   docente_nombre: string;
-  materia: number;
-  materia_codigo: string;
-  materia_nombre: string;
+  materias: number[];
+  materias_display: MateriaDisplay[];
   cargo: number;
   cargo_codigo: string;
   cargo_descripcion: string;
@@ -29,22 +39,17 @@ interface CargoDocente {
   caracter: number;
   caracter_codigo: string;
   caracter_descripcion: string;
-  carrera_nombre: string;
-  plan_estudio_codigo: string;
-  area_nombre: string | null;
-  facultad_nombre: string;
   caracter_requiere_fecha: string;
   fecha_inicio: string | null;
   fecha_fin: string | null;
   activo: boolean;
   sede: number | null;
   sede_nombre: string | null;
-  carrera_id: number;
 }
 
 interface CargoDocenteForm {
   docente: number;
-  materia: number;
+  materias: number[];
   cargo: number;
   dedicacion: number;
   caracter: number;
@@ -60,7 +65,7 @@ interface FieldErrors {
 
 const emptyForm: CargoDocenteForm = {
   docente: 0,
-  materia: 0,
+  materias: [],
   cargo: 0,
   dedicacion: 0,
   caracter: 0,
@@ -81,7 +86,7 @@ export default function CargosPersonasPage() {
   const { data: cargosData } = useApiData<{ results: Record<string, unknown>[] }>("/cargos/", []);
   const { data: dedicacionesData } = useApiData<{ results: Record<string, unknown>[] }>("/dedicaciones/", []);
   const { data: caracteresData } = useApiData<{ results: Record<string, unknown>[] }>("/caracteres/", []);
-  const { data: carrerasData } = useApiData<{ results: Record<string, unknown>[] }>("/carreras/", []);
+  const { data: sedesData } = useApiData<{ results: Record<string, unknown>[] }>("/sedes/", []);
 
   const items = data?.results ?? [];
   const docentes = docentesData?.results ?? [];
@@ -89,7 +94,7 @@ export default function CargosPersonasPage() {
   const cargos = cargosData?.results ?? [];
   const dedicaciones = dedicacionesData?.results ?? [];
   const caracteres = caracteresData?.results ?? [];
-  const carreras = carrerasData?.results ?? [];
+  const sedes = sedesData?.results ?? [];
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CargoDocenteForm>(emptyForm);
@@ -102,20 +107,14 @@ export default function CargosPersonasPage() {
   const [search, setSearch] = useState("");
 
   const [selectedCaracter, setSelectedCaracter] = useState<{ requiere_fecha: string } | null>(null);
-  const [materiaCarreraId, setMateriaCarreraId] = useState<number | null>(null);
 
   const [docenteSearch, setDocenteSearch] = useState("");
   const [docenteDropdownOpen, setDocenteDropdownOpen] = useState(false);
   const docenteRef = useRef<HTMLDivElement>(null);
+
   const [materiaSearch, setMateriaSearch] = useState("");
   const [materiaDropdownOpen, setMateriaDropdownOpen] = useState(false);
   const materiaRef = useRef<HTMLDivElement>(null);
-
-  const sedesDelCarrera = materiaCarreraId
-    ? carreras
-        .find((c: Record<string, unknown>) => c.id === materiaCarreraId)
-        ?.sedes_nombres as { id: number; nombre: string }[] | undefined ?? []
-    : [];
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -129,15 +128,6 @@ export default function CargosPersonasPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    if (form.materia) {
-      const m = materias.find((x: Record<string, unknown>) => x.id === form.materia);
-      setMateriaCarreraId(m ? (m.carrera_id as number) : null);
-    } else {
-      setMateriaCarreraId(null);
-    }
-  }, [form.materia, materias]);
 
   const docentesFiltered = docenteSearch
     ? docentes.filter((d: Record<string, unknown>) => {
@@ -174,11 +164,14 @@ export default function CargosPersonasPage() {
   const showInicio = requiereFecha === "inicio" || requiereFecha === "ambas";
   const showFin = requiereFecha === "fin" || requiereFecha === "ambas";
 
+  const selectedMateriasDisplay = form.materias
+    .map((id) => materias.find((m: Record<string, unknown>) => m.id === id))
+    .filter((m): m is Record<string, unknown> => !!m);
+
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
     setSelectedCaracter(null);
-    setMateriaCarreraId(null);
     setErrors({});
     setFormError("");
     setDocenteSearch("");
@@ -192,7 +185,7 @@ export default function CargosPersonasPage() {
     setEditingId(item.id);
     setForm({
       docente: item.docente,
-      materia: item.materia,
+      materias: item.materias,
       cargo: item.cargo,
       dedicacion: item.dedicacion,
       caracter: item.caracter,
@@ -202,9 +195,7 @@ export default function CargosPersonasPage() {
       sede: item.sede ?? 0,
     });
     setSelectedCaracter({ requiere_fecha: item.caracter_requiere_fecha });
-    setMateriaCarreraId(item.carrera_id);
     setDocenteSearch(item.docente_nombre.replace(/^([^,]+)/, (m) => m.toUpperCase()));
-    setMateriaSearch(`${item.materia_codigo} - ${item.materia_nombre}`);
     setDocenteDropdownOpen(false);
     setMateriaDropdownOpen(false);
     setErrors({});
@@ -217,7 +208,6 @@ export default function CargosPersonasPage() {
     setEditingId(null);
     setForm(emptyForm);
     setSelectedCaracter(null);
-    setMateriaCarreraId(null);
     setErrors({});
     setFormError("");
   };
@@ -225,11 +215,10 @@ export default function CargosPersonasPage() {
   const validate = (): boolean => {
     const newErrors: FieldErrors = {};
     if (!form.docente) newErrors.docente = "Seleccioná un docente.";
-    if (!form.materia) newErrors.materia = "Seleccioná una materia.";
+    if (!form.materias.length) newErrors.materias = "Seleccioná al menos una materia.";
     if (!form.cargo) newErrors.cargo = "Seleccioná un cargo.";
     if (!form.dedicacion) newErrors.dedicacion = "Seleccioná una dedicación.";
     if (!form.caracter) newErrors.caracter = "Seleccioná un carácter.";
-    if (sedesDelCarrera.length > 0 && !form.sede) newErrors.sede = "Seleccioná una sede.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -287,13 +276,11 @@ export default function CargosPersonasPage() {
   const filtered = items.filter((c) => {
     if (!search) return true;
     const q = search.toLowerCase();
+    const materiasText = c.materias_display.map((m) => `${m.codigo} ${m.nombre}`).join(" ");
     return (
       c.docente_nombre.toLowerCase().includes(q) ||
-      c.materia_codigo.toLowerCase().includes(q) ||
-      c.materia_nombre.toLowerCase().includes(q) ||
-      c.cargo_descripcion.toLowerCase().includes(q) ||
-      c.carrera_nombre.toLowerCase().includes(q) ||
-      c.facultad_nombre.toLowerCase().includes(q)
+      materiasText.toLowerCase().includes(q) ||
+      c.cargo_descripcion.toLowerCase().includes(q)
     );
   });
 
@@ -322,30 +309,36 @@ export default function CargosPersonasPage() {
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
               <tr>
                 <th className="px-4 py-3">Persona</th>
-                <th className="px-4 py-3">Materia</th>
+                <th className="px-4 py-3">Materias</th>
                 <th className="px-4 py-3">Cargo</th>
                 <th className="px-4 py-3">Dedicación</th>
                 <th className="px-4 py-3">Carácter</th>
                 <th className="px-4 py-3">Vigencia</th>
                 <th className="px-4 py-3">Sede</th>
-                <th className="px-4 py-3">Carrera / Plan</th>
-                <th className="px-4 py-3">Facultad</th>
                 <th className="px-4 py-3">Activo</th>
                 {canWrite && <th className="px-4 py-3">Acciones</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={canWrite ? 11 : 10} className="px-4 py-8 text-center">Cargando...</td></tr>
+                <tr><td colSpan={canWrite ? 9 : 8} className="px-4 py-8 text-center">Cargando...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={canWrite ? 11 : 10} className="px-4 py-8 text-center text-gray-400">No hay cargos registrados.</td></tr>
+                <tr><td colSpan={canWrite ? 9 : 8} className="px-4 py-8 text-center text-gray-400">No hay cargos registrados.</td></tr>
               ) : (
                 filtered.map((c) => (
                   <tr key={c.id} className="border-b border-gray-200 dark:border-gray-700">
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">
                       {c.docente_nombre.replace(/^([^,]+)/, (m) => m.toUpperCase())}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{c.materia_codigo} - {c.materia_nombre}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {c.materias_display.map((m, i) => (
+                        <div key={m.id}>
+                          {i > 0 && <br />}
+                          {m.codigo} - {m.nombre}
+                          <span className="text-gray-400"> ({m.carrera_nombre}/{m.plan_estudio_codigo})</span>
+                        </div>
+                      ))}
+                    </td>
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">{c.cargo_descripcion}</td>
                     <td className="px-4 py-3">{c.dedicacion_descripcion}</td>
                     <td className="px-4 py-3">{c.caracter_descripcion}</td>
@@ -354,8 +347,6 @@ export default function CargosPersonasPage() {
                       {c.fecha_fin ? ` hasta ${formatDate(c.fecha_fin)}` : ""}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{c.sede_nombre ?? "—"}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{c.carrera_nombre} / {c.plan_estudio_codigo}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{c.facultad_nombre}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         c.activo
@@ -392,7 +383,7 @@ export default function CargosPersonasPage() {
               {editingId ? "Editar Cargo" : "Nuevo Cargo"}
             </h4>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {editingId ? "Modificá los datos del cargo" : "Asigná un cargo a una persona en una materia"}
+              {editingId ? "Modificá los datos del cargo" : "Asigná un cargo a una persona en una o más materias"}
             </p>
           </div>
           <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="flex flex-col">
@@ -451,20 +442,20 @@ export default function CargosPersonasPage() {
                   )}
                   {errors.docente && <p className="mt-1 text-xs text-error-500">{errors.docente}</p>}
                 </div>
+
                 <div className="relative" ref={materiaRef}>
-                  <Label>Materia</Label>
+                  <Label>Materias</Label>
                   <input
                     type="text"
-                    placeholder="Buscá una materia..."
+                    placeholder="Buscá y seleccioná materias..."
                     value={materiaSearch}
                     onChange={(e) => {
                       setMateriaSearch(e.target.value);
-                      setForm({ ...form, materia: 0 });
                       setMateriaDropdownOpen(true);
                     }}
                     onFocus={() => setMateriaDropdownOpen(true)}
                     className={`h-11 w-full rounded-lg border bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 placeholder-gray-400 ${
-                      errors.materia
+                      errors.materias
                         ? "border-error-500"
                         : "border-gray-300 dark:border-gray-700"
                     }`}
@@ -474,28 +465,55 @@ export default function CargosPersonasPage() {
                       {materiasFiltered.length === 0 ? (
                         <div className="px-3 py-2 text-sm text-gray-400">Sin resultados</div>
                       ) : (
-                        materiasFiltered.map((m: Record<string, unknown>) => (
-                          <button
-                            key={m.id as number}
-                            type="button"
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                              form.materia === (m.id as number)
-                                ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
-                                : "text-gray-800 dark:text-white/90"
-                            }`}
-                            onClick={() => {
-                              setForm({ ...form, materia: m.id as number, sede: 0 });
-                              setMateriaSearch(`${(m.codigo as string)} - ${(m.nombre as string)}`);
-                              setMateriaDropdownOpen(false);
-                            }}
-                          >
-                            {(m.codigo as string)} - {(m.nombre as string)}
-                          </button>
-                        ))
+                        materiasFiltered.map((m: Record<string, unknown>) => {
+                          const isSelected = form.materias.includes(m.id as number);
+                          return (
+                            <button
+                              key={m.id as number}
+                              type="button"
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                                isSelected
+                                  ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                                  : "text-gray-800 dark:text-white/90"
+                              }`}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setForm({ ...form, materias: form.materias.filter((id) => id !== (m.id as number)) });
+                                } else {
+                                  setForm({ ...form, materias: [...form.materias, m.id as number] });
+                                }
+                                setMateriaSearch("");
+                              }}
+                            >
+                              {(m.codigo as string)} - {(m.nombre as string)}
+                              {m.carrera_nombre ? ` (${m.carrera_nombre as string})` : ""}
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   )}
-                  {errors.materia && <p className="mt-1 text-xs text-error-500">{errors.materia}</p>}
+                  {errors.materias && <p className="mt-1 text-xs text-error-500">{errors.materias}</p>}
+
+                  {selectedMateriasDisplay.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {selectedMateriasDisplay.map((m) => (
+                        <span
+                          key={m.id as number}
+                          className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                        >
+                          {(m.codigo as string)} - {(m.nombre as string)}
+                          <button
+                            type="button"
+                            onClick={() => setForm({ ...form, materias: form.materias.filter((id) => id !== (m.id as number)) })}
+                            className="ml-0.5 text-brand-500 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                          >
+                            &times;
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -544,7 +562,7 @@ export default function CargosPersonasPage() {
                 </div>
               </div>
 
-              {materiaCarreraId && sedesDelCarrera.length > 0 && (
+              {sedes.length > 0 && (
                 <div>
                   <Label>Sede</Label>
                   <select
@@ -554,9 +572,9 @@ export default function CargosPersonasPage() {
                       errors.sede ? "border-error-500" : "border-gray-300 dark:border-gray-700"
                     }`}
                   >
-                    <option value={0}>Seleccioná...</option>
-                    {sedesDelCarrera.map((s: { id: number; nombre: string }) => (
-                      <option key={s.id} value={s.id}>{s.nombre}</option>
+                    <option value={0}>Sin sede</option>
+                    {sedes.map((s: Record<string, unknown>) => (
+                      <option key={s.id as number} value={s.id as number}>{s.nombre as string}</option>
                     ))}
                   </select>
                   {errors.sede && <p className="mt-1 text-xs text-error-500">{errors.sede}</p>}

@@ -104,8 +104,8 @@ class CargoDocente(models.Model):
     docente = models.ForeignKey(
         Docente, on_delete=models.CASCADE, related_name="cargos"
     )
-    materia = models.ForeignKey(
-        "academica.Materia", on_delete=models.PROTECT, related_name="cargos_docentes"
+    materias = models.ManyToManyField(
+        "academica.Materia", related_name="cargos_docentes", blank=True
     )
     cargo = models.ForeignKey(
         Cargo, on_delete=models.PROTECT, related_name="cargos_docentes"
@@ -127,7 +127,7 @@ class CargoDocente(models.Model):
     class Meta:
         verbose_name = "Cargo de Docente"
         verbose_name_plural = "Cargos de Docentes"
-        ordering = ["docente__apellido", "docente__nombre", "materia__nombre"]
+        ordering = ["docente__apellido", "docente__nombre"]
 
     def save(self, *args, **kwargs):
         if self.fecha_fin and self.fecha_fin < date.today():
@@ -135,4 +135,5 @@ class CargoDocente(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.docente} - {self.cargo} en {self.materia}"
+        count = self.materias.count()
+        return f"{self.docente} - {self.cargo} ({count} materia{'s' if count != 1 else ''})"

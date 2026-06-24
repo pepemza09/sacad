@@ -33,21 +33,15 @@ class DocenteSerializer(serializers.ModelSerializer):
 
 class CargoDocenteSerializer(serializers.ModelSerializer):
     docente_nombre = serializers.SerializerMethodField()
-    materia_codigo = serializers.CharField(source="materia.codigo", read_only=True)
-    materia_nombre = serializers.CharField(source="materia.nombre", read_only=True)
+    materias_display = serializers.SerializerMethodField()
     cargo_codigo = serializers.CharField(source="cargo.codigo", read_only=True)
     cargo_descripcion = serializers.CharField(source="cargo.descripcion", read_only=True)
     dedicacion_codigo = serializers.CharField(source="dedicacion.codigo", read_only=True)
     dedicacion_descripcion = serializers.CharField(source="dedicacion.descripcion", read_only=True)
     caracter_codigo = serializers.CharField(source="caracter.codigo", read_only=True)
     caracter_descripcion = serializers.CharField(source="caracter.descripcion", read_only=True)
-    carrera_nombre = serializers.CharField(source="materia.plan_estudio.carrera.nombre", read_only=True)
-    plan_estudio_codigo = serializers.CharField(source="materia.plan_estudio.codigo", read_only=True)
-    area_nombre = serializers.CharField(source="materia.area.nombre", read_only=True, allow_null=True)
-    facultad_nombre = serializers.CharField(source="materia.plan_estudio.carrera.facultad.nombre", read_only=True)
     caracter_requiere_fecha = serializers.CharField(source="caracter.requiere_fecha", read_only=True)
     sede_nombre = serializers.CharField(source="sede.nombre", read_only=True, allow_null=True)
-    carrera_id = serializers.IntegerField(source="materia.plan_estudio.carrera.id", read_only=True)
 
     class Meta:
         model = CargoDocente
@@ -55,3 +49,18 @@ class CargoDocenteSerializer(serializers.ModelSerializer):
 
     def get_docente_nombre(self, obj):
         return f"{obj.docente.apellido}, {obj.docente.nombre}"
+
+    def get_materias_display(self, obj):
+        return [
+            {
+                "id": m.id,
+                "codigo": m.codigo,
+                "nombre": m.nombre,
+                "carrera_nombre": m.plan_estudio.carrera.nombre,
+                "plan_estudio_codigo": m.plan_estudio.codigo,
+                "area_nombre": m.area.nombre if m.area else None,
+                "facultad_nombre": m.plan_estudio.carrera.facultad.nombre,
+                "carrera_id": m.plan_estudio.carrera.id,
+            }
+            for m in obj.materias.all()
+        ]

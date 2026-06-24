@@ -47,11 +47,12 @@ class CaracterViewSet(viewsets.ModelViewSet):
 
 class CargoDocenteViewSet(viewsets.ModelViewSet):
     queryset = CargoDocente.objects.select_related(
-        "docente", "materia__plan_estudio__carrera__facultad",
-        "materia__area", "cargo", "dedicacion", "caracter", "sede",
+        "docente", "cargo", "dedicacion", "caracter", "sede",
+    ).prefetch_related(
+        "materias__plan_estudio__carrera__facultad", "materias__area",
     ).all()
     serializer_class = CargoDocenteSerializer
-    search_fields = ["docente__apellido", "docente__nombre", "materia__nombre", "materia__codigo"]
+    search_fields = ["docente__apellido", "docente__nombre", "materias__nombre", "materias__codigo"]
 
     def check_permissions(self, request):
         super().check_permissions(request)
