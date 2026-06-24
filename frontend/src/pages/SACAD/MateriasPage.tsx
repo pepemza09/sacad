@@ -391,17 +391,16 @@ export default function MateriasPage() {
                 <th className="px-4 py-3">Período</th>
                 <th className="px-4 py-3">Créditos</th>
                 <th className="px-4 py-3">Horas Tot.</th>
-                <th className="px-4 py-3">Área</th>
                 <th className="px-4 py-3">Tipo</th>
                 {canWrite && <th className="px-4 py-3">Acciones</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} className="px-4 py-8 text-center">Cargando...</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center">Cargando...</td></tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
                     No hay materias registradas
                   </td>
                 </tr>
@@ -416,7 +415,6 @@ export default function MateriasPage() {
                     <td className="px-4 py-3">{m.periodo || m.cuatrimestre}</td>
                     <td className="px-4 py-3 font-medium">{m.creditos ?? "-"}</td>
                     <td className="px-4 py-3">{m.carga_horaria_total}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{m.area_nombre || "-"}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full capitalize ${getBadgeClass(m.tipo_nombre)}`}>
                         {m.tipo_nombre}
