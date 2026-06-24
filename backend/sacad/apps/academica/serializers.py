@@ -176,6 +176,7 @@ class MateriaSerializer(serializers.ModelSerializer):
     tipo_nombre = serializers.SerializerMethodField()
     plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
     carrera_nombre = serializers.CharField(source="plan_estudio.carrera.nombre", read_only=True)
+    carrera_id = serializers.IntegerField(source="plan_estudio.carrera.id", read_only=True)
     area_nombre = serializers.CharField(source="area.nombre", read_only=True, allow_null=True)
     disciplina_codigo = serializers.CharField(source="disciplina.codigo", read_only=True, allow_null=True)
     disciplina_descripcion = serializers.CharField(source="disciplina.descripcion", read_only=True, allow_null=True)

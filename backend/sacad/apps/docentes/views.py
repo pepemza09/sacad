@@ -48,7 +48,7 @@ class CaracterViewSet(viewsets.ModelViewSet):
 class CargoDocenteViewSet(viewsets.ModelViewSet):
     queryset = CargoDocente.objects.select_related(
         "docente", "materia__plan_estudio__carrera__facultad",
-        "materia__area", "cargo", "dedicacion", "caracter",
+        "materia__area", "cargo", "dedicacion", "caracter", "sede",
     ).all()
     serializer_class = CargoDocenteSerializer
     search_fields = ["docente__apellido", "docente__nombre", "materia__nombre", "materia__codigo"]

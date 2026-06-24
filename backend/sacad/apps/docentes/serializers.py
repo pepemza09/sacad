@@ -46,6 +46,8 @@ class CargoDocenteSerializer(serializers.ModelSerializer):
     area_nombre = serializers.CharField(source="materia.area.nombre", read_only=True, allow_null=True)
     facultad_nombre = serializers.CharField(source="materia.plan_estudio.carrera.facultad.nombre", read_only=True)
     caracter_requiere_fecha = serializers.CharField(source="caracter.requiere_fecha", read_only=True)
+    sede_nombre = serializers.CharField(source="sede.nombre", read_only=True, allow_null=True)
+    carrera_id = serializers.IntegerField(source="materia.plan_estudio.carrera.id", read_only=True)
 
     class Meta:
         model = CargoDocente

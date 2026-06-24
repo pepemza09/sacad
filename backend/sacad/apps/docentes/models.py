@@ -118,6 +118,10 @@ class CargoDocente(models.Model):
     )
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_fin = models.DateField(null=True, blank=True)
+    sede = models.ForeignKey(
+        "academica.Sede", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="cargos_docentes",
+    )
     activo = models.BooleanField(default=True)
 
     class Meta:
