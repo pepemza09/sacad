@@ -22,6 +22,9 @@ class EspecialidadSerializer(serializers.ModelSerializer):
     subdisciplina_codigo = serializers.CharField(
         source="subdisciplina.codigo", read_only=True
     )
+    disciplina_codigo = serializers.CharField(
+        source="subdisciplina.disciplina.codigo", read_only=True
+    )
 
     class Meta:
         model = Especialidad

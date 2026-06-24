@@ -164,7 +164,9 @@ class PlanEstudioViewSet(viewsets.ModelViewSet):
 
 
 class MateriaViewSet(viewsets.ModelViewSet):
-    queryset = Materia.objects.select_related("plan_estudio__carrera").all()
+    queryset = Materia.objects.select_related(
+        "plan_estudio__carrera", "disciplina", "subdisciplina", "especialidad"
+    ).all()
     filterset_class = MateriaFilter
     search_fields = ["nombre", "codigo", "periodo", "tipo__nombre", "contenidos_minimos"]
     permission_classes = [IsAuthenticated]

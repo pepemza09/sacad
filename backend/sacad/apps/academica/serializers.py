@@ -177,6 +177,12 @@ class MateriaSerializer(serializers.ModelSerializer):
     plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
     carrera_nombre = serializers.CharField(source="plan_estudio.carrera.nombre", read_only=True)
     area_nombre = serializers.CharField(source="area.nombre", read_only=True, allow_null=True)
+    disciplina_codigo = serializers.CharField(source="disciplina.codigo", read_only=True, allow_null=True)
+    disciplina_descripcion = serializers.CharField(source="disciplina.descripcion", read_only=True, allow_null=True)
+    subdisciplina_codigo = serializers.CharField(source="subdisciplina.codigo", read_only=True, allow_null=True)
+    subdisciplina_descripcion = serializers.CharField(source="subdisciplina.descripcion", read_only=True, allow_null=True)
+    especialidad_codigo = serializers.CharField(source="especialidad.codigo", read_only=True, allow_null=True)
+    especialidad_descripcion = serializers.CharField(source="especialidad.descripcion", read_only=True, allow_null=True)
 
     class Meta:
         model = Materia
@@ -191,6 +197,12 @@ class MateriaDetailSerializer(serializers.ModelSerializer):
     plan_estudio_codigo = serializers.CharField(source="plan_estudio.codigo", read_only=True)
     carrera_nombre = serializers.CharField(source="plan_estudio.carrera.nombre", read_only=True)
     area_nombre = serializers.CharField(source="area.nombre", read_only=True, allow_null=True)
+    disciplina_codigo = serializers.CharField(source="disciplina.codigo", read_only=True, allow_null=True)
+    disciplina_descripcion = serializers.CharField(source="disciplina.descripcion", read_only=True, allow_null=True)
+    subdisciplina_codigo = serializers.CharField(source="subdisciplina.codigo", read_only=True, allow_null=True)
+    subdisciplina_descripcion = serializers.CharField(source="subdisciplina.descripcion", read_only=True, allow_null=True)
+    especialidad_codigo = serializers.CharField(source="especialidad.codigo", read_only=True, allow_null=True)
+    especialidad_descripcion = serializers.CharField(source="especialidad.descripcion", read_only=True, allow_null=True)
     correlativas = serializers.SerializerMethodField()
     requisito_de = serializers.SerializerMethodField()
 

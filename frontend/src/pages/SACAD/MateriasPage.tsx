@@ -69,6 +69,16 @@ interface Materia {
   plan_estudio: number;
   plan_estudio_codigo: string;
   carrera_nombre: string;
+  disciplina: number | null;
+  disciplina_codigo: string | null;
+  disciplina_descripcion: string | null;
+  subdisciplina: number | null;
+  subdisciplina_codigo: string | null;
+  subdisciplina_descripcion: string | null;
+  especialidad: number | null;
+  especialidad_codigo: string | null;
+  especialidad_descripcion: string | null;
+  nomenclador_free_text: string;
 }
 
 interface PlanOption {
@@ -89,6 +99,22 @@ interface TipoMateriaOption {
   activo: boolean;
 }
 
+interface NomencladorOption {
+  id: number;
+  codigo: string;
+  descripcion: string;
+}
+
+interface SubdisciplinaOption extends NomencladorOption {
+  disciplina: number;
+  disciplina_codigo: string;
+}
+
+interface EspecialidadOption extends NomencladorOption {
+  subdisciplina: number;
+  subdisciplina_codigo: string;
+}
+
 interface MateriaForm {
   plan_estudio: number;
   codigo: string;
@@ -101,6 +127,10 @@ interface MateriaForm {
   area: number | null;
   tipo: number | null;
   contenidos_minimos: string;
+  disciplina: number | null;
+  subdisciplina: number | null;
+  especialidad: number | null;
+  nomenclador_free_text: string;
 }
 
 interface FieldErrors {
@@ -119,6 +149,10 @@ const emptyForm: MateriaForm = {
   area: null,
   tipo: null,
   contenidos_minimos: "",
+  disciplina: null,
+  subdisciplina: null,
+  especialidad: null,
+  nomenclador_free_text: "",
 };
 
 const CUATRI_OPTIONS = [
@@ -150,6 +184,18 @@ export default function MateriasPage() {
     "/tipos-materia/",
     []
   );
+  const { data: disciplinasData } = useApiData<{ results: NomencladorOption[] }>(
+    "/disciplinas/",
+    []
+  );
+  const { data: subdisciplinasData } = useApiData<{ results: SubdisciplinaOption[] }>(
+    "/subdisciplinas/",
+    []
+  );
+  const { data: especialidadesData } = useApiData<{ results: EspecialidadOption[] }>(
+    "/especialidades/",
+    []
+  );
 
   const modal = useModal();
   const [form, setForm] = useState<MateriaForm>(emptyForm);
@@ -177,6 +223,19 @@ export default function MateriasPage() {
   const planes = planesData?.results || [];
   const areas = areasData?.results || [];
   const tiposMateria = tiposMateriaData?.results || [];
+  const disciplinas = disciplinasData?.results || [];
+  const allSubdisciplinas = subdisciplinasData?.results || [];
+  const allEspecialidades = especialidadesData?.results || [];
+
+  const subdisciplinasFiltradas = form.disciplina
+    ? allSubdisciplinas.filter((s) => s.disciplina === form.disciplina)
+    : [];
+  const especialidadesFiltradas = form.subdisciplina
+    ? allEspecialidades.filter((e) => e.subdisciplina === form.subdisciplina)
+    : [];
+
+  const selectedEspecialidad = allEspecialidades.find((e) => e.id === form.especialidad);
+  const showFreeText = selectedEspecialidad?.codigo === "99";
 
   const areasDelPlan = form.plan_estudio
     ? areas.filter((a) => a.plan_estudio === form.plan_estudio)
@@ -192,10 +251,7 @@ export default function MateriasPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({
-      ...emptyForm,
-      plan_estudio: planes.length === 1 ? planes[0].id : 0,
-    });
+    setForm({ ...emptyForm, plan_estudio: planes.length === 1 ? planes[0].id : 0 });
     setAreaSearch("");
     setErrors({});
     setFormError("");
@@ -218,6 +274,10 @@ export default function MateriasPage() {
       area: m.area,
       tipo: m.tipo,
       contenidos_minimos: m.contenidos_minimos ?? "",
+      disciplina: m.disciplina,
+      subdisciplina: m.subdisciplina,
+      especialidad: m.especialidad,
+      nomenclador_free_text: m.nomenclador_free_text ?? "",
     });
     const a = areas.find((a) => a.id === m.area);
     setAreaSearch(a?.nombre ?? "");
@@ -251,6 +311,9 @@ export default function MateriasPage() {
         año: Number(form.año),
         area: form.area || null,
         tipo: form.tipo || null,
+        disciplina: form.disciplina || null,
+        subdisciplina: form.subdisciplina || null,
+        especialidad: form.especialidad || null,
       };
       if (editingId) {
         await apiClient.put(`/materias/${editingId}/`, payload);
@@ -589,15 +652,76 @@ export default function MateriasPage() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="contenidos_minimos">Contenidos Mínimos</Label>
-                <textarea
-                  id="contenidos_minimos"
-                  rows={3}
-                  value={form.contenidos_minimos}
-                  onChange={(e) => setForm({ ...form, contenidos_minimos: e.target.value })}
-                  className="h-20 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-                />
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-5">
+                <h5 className="text-sm font-semibold text-gray-800 dark:text-white/90 mb-3">
+                  Nomenclador (Disciplina / Subdisciplina / Especialidad)
+                </h5>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="disciplina">Disciplina</Label>
+                    <select
+                      id="disciplina"
+                      value={form.disciplina ?? 0}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || null;
+                        setForm({ ...form, disciplina: val, subdisciplina: null, especialidad: null, nomenclador_free_text: "" });
+                      }}
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                    >
+                      <option value={0}>Seleccioná...</option>
+                      {disciplinas.map((d) => (
+                        <option key={d.id} value={d.id}>{d.codigo} {d.descripcion}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="subdisciplina">Subdisciplina</Label>
+                    <select
+                      id="subdisciplina"
+                      value={form.subdisciplina ?? 0}
+                      disabled={!form.disciplina}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || null;
+                        setForm({ ...form, subdisciplina: val, especialidad: null, nomenclador_free_text: "" });
+                      }}
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:text-white/90"
+                    >
+                      <option value={0}>Seleccioná...</option>
+                      {subdisciplinasFiltradas.map((s) => (
+                        <option key={s.id} value={s.id}>{s.codigo} {s.descripcion}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="especialidad">Especialidad</Label>
+                    <select
+                      id="especialidad"
+                      value={form.especialidad ?? 0}
+                      disabled={!form.subdisciplina}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || null;
+                        setForm({ ...form, especialidad: val, nomenclador_free_text: "" });
+                      }}
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:text-white/90"
+                    >
+                      <option value={0}>Seleccioná...</option>
+                      {especialidadesFiltradas.map((e) => (
+                        <option key={e.id} value={e.id}>{e.codigo} {e.descripcion}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {showFreeText && (
+                  <div className="mt-3">
+                    <Label htmlFor="nomenclador_free_text">Especificar especialidad</Label>
+                    <Input
+                      id="nomenclador_free_text"
+                      placeholder="Ej: Estudio del Sol"
+                      value={form.nomenclador_free_text}
+                      onChange={(e) => setForm({ ...form, nomenclador_free_text: e.target.value })}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

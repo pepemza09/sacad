@@ -39,12 +39,16 @@ interface TabConfig {
   parentKey?: string;
   parentDisplay?: string;
   parentLabel?: string;
+  grandParentEndpoint?: string;
+  grandParentKey?: string;
+  grandParentDisplay?: string;
+  grandParentLabel?: string;
 }
 
 const TABS: TabConfig[] = [
   { key: "disciplinas", label: "Disciplinas", endpoint: "/disciplinas/", title: "Disciplinas", desc: "Configurá las disciplinas del nomenclador." },
   { key: "subdisciplinas", label: "Subdisciplinas", endpoint: "/subdisciplinas/", title: "Subdisciplinas", desc: "Configurá las subdisciplinas del nomenclador.", parentEndpoint: "/disciplinas/", parentKey: "disciplina", parentDisplay: "disciplina_codigo", parentLabel: "Disciplina" },
-  { key: "especialidades", label: "Especialidades", endpoint: "/especialidades/", title: "Especialidades", desc: "Configurá las especialidades del nomenclador.", parentEndpoint: "/subdisciplinas/", parentKey: "subdisciplina", parentDisplay: "subdisciplina_codigo", parentLabel: "Subdisciplina" },
+  { key: "especialidades", label: "Especialidades", endpoint: "/especialidades/", title: "Especialidades", desc: "Configurá las especialidades del nomenclador.", parentEndpoint: "/subdisciplinas/", parentKey: "subdisciplina", parentDisplay: "subdisciplina_codigo", parentLabel: "Subdisciplina", grandParentEndpoint: "/disciplinas/", grandParentKey: "disciplina", grandParentDisplay: "disciplina_codigo", grandParentLabel: "Disciplina" },
 ];
 
 function NomencladorTable({ tab, canWrite }: { tab: TabConfig; canWrite: boolean }) {
@@ -58,7 +62,7 @@ function NomencladorTable({ tab, canWrite }: { tab: TabConfig; canWrite: boolean
         setParents(res.data?.results ?? []);
       });
     }
-  }, [tab.parentEndpoint]);
+  }, [tab.parentEndpoint, tab.grandParentEndpoint]);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [codigo, setCodigo] = useState("");
@@ -151,7 +155,7 @@ function NomencladorTable({ tab, canWrite }: { tab: TabConfig; canWrite: boolean
     }
   };
 
-  const colSpan = hasParent ? 5 : 4;
+  const colSpan = (hasParent ? 1 : 0) + (tab.grandParentEndpoint ? 1 : 0) + 4;
 
   return (
     <div>
@@ -235,6 +239,7 @@ function NomencladorTable({ tab, canWrite }: { tab: TabConfig; canWrite: boolean
         <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
+              {tab.grandParentEndpoint && <th className="px-4 py-3 w-28">{tab.grandParentLabel}</th>}
               {hasParent && <th className="px-4 py-3 w-28">{tab.parentLabel}</th>}
               <th className="px-4 py-3 w-28">Código</th>
               <th className="px-4 py-3">Descripción</th>
@@ -250,6 +255,11 @@ function NomencladorTable({ tab, canWrite }: { tab: TabConfig; canWrite: boolean
             ) : (
               items.map((item) => (
                 <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700">
+                  {tab.grandParentEndpoint && (
+                    <td className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 uppercase">
+                      {item[tab.grandParentDisplay as keyof NomencladorItem] as string}
+                    </td>
+                  )}
                   {hasParent && (
                     <td className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 uppercase">
                       {item[tab.parentDisplay as keyof NomencladorItem] as string}

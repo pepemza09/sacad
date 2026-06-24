@@ -2,6 +2,8 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 
+from sacad.apps.nomenclador.models import Disciplina, Subdisciplina, Especialidad
+
 User = get_user_model()
 
 
@@ -182,6 +184,23 @@ class Materia(models.Model):
         TipoMateria, on_delete=models.PROTECT, null=True, blank=True, related_name="materias"
     )
     contenidos_minimos = models.TextField(blank=True)
+
+    disciplina = models.ForeignKey(
+        Disciplina, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="materias",
+    )
+    subdisciplina = models.ForeignKey(
+        Subdisciplina, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="materias",
+    )
+    especialidad = models.ForeignKey(
+        Especialidad, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="materias",
+    )
+    nomenclador_free_text = models.CharField(
+        max_length=255, blank=True, default="",
+        help_text="Texto libre cuando el código del nomenclador es 99 (OTRAS)",
+    )
 
     def save(self, *args, **kwargs):
         if self.periodo:
