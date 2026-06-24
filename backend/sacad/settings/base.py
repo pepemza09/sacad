@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "sacad.apps.usuarios",
     "sacad.apps.equivalencias",
     "sacad.apps.docentes",
+    "sacad.apps.nomenclador",
 ]
 
 SITE_ID = 1

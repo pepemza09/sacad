@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/", include("sacad.apps.academica.urls")),
     path("api/", include("sacad.apps.equivalencias.urls")),
     path("api/", include("sacad.apps.docentes.urls")),
+    path("api/", include("sacad.apps.nomenclador.urls")),
     path("accounts/", include("allauth.urls")),
 ]
 

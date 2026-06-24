@@ -24,6 +24,7 @@ import GestionDominiosPage from "./pages/SACAD/GestionDominiosPage";
 import GestionRolesPage from "./pages/SACAD/GestionRolesPage";
 import GestionTiposMateriaPage from "./pages/SACAD/GestionTiposMateriaPage";
 import GestionDesignacionesPage from "./pages/SACAD/GestionDesignacionesPage";
+import GestionNomencladorPage from "./pages/SACAD/GestionNomencladorPage";
 import SearchPage from "./pages/SACAD/SearchPage";
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
               <Route path="/configuracion/roles" element={<GestionRolesPage />} />
               <Route path="/configuracion/tipos-materia" element={<GestionTiposMateriaPage />} />
               <Route path="/configuracion/cargos_dedicaciones" element={<GestionDesignacionesPage />} />
+              <Route path="/configuracion/nomenclador" element={<GestionNomencladorPage />} />
               <Route path="/buscar" element={<SearchPage />} />
             </Route>
           </Route>

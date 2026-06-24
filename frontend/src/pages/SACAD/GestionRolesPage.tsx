@@ -52,6 +52,7 @@ const MENU_ITEMS = [
   { key: "configuracion.roles", label: "Config. - Roles de usuarios" },
   { key: "configuracion.tipos-materia", label: "Config. - Tipos de Materia" },
   { key: "configuracion.designaciones", label: "Config. - Designaciones" },
+  { key: "configuracion.nomenclador", label: "Config. - Nomenclador" },
 ];
 
 const defaultMenuPerms = (): MenuPerm[] =>

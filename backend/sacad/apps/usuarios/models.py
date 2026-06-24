@@ -20,6 +20,7 @@ MENU_KEYS = [
     ("configuracion.roles", "Config. - Roles de usuarios"),
     ("configuracion.tipos-materia", "Config. - Tipos de Materia"),
     ("configuracion.designaciones", "Config. - Designaciones"),
+    ("configuracion.nomenclador", "Config. - Nomenclador"),
 ]
 
 

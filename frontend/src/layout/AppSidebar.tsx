@@ -77,6 +77,7 @@ const pathToMenuKey: Record<string, string> = {
   "/configuracion/roles": "configuracion.roles",
   "/configuracion/tipos-materia": "configuracion.tipos-materia",
   "/configuracion/cargos_dedicaciones": "configuracion.designaciones",
+  "/configuracion/nomenclador": "configuracion.nomenclador",
 };
 
 const AppSidebar: React.FC = () => {
