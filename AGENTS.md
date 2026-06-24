@@ -87,6 +87,10 @@ sacad/
 | Modelo | Campos clave | Relaciones |
 |--------|-------------|------------|
 | `Docente` | apellido, nombre, dni (unique), cuit_cuil (unique, null=True), legajo, legajo_en_tramite, email, telefono, facultad (FK->Facultad), activo | — |
+| `Cargo` | codigo (unique), descripcion, activo | — |
+| `Dedicacion` | codigo (unique), descripcion, activo | — |
+| `Caracter` | codigo (unique), descripcion, requiere_fecha (ninguna/inicio/fin/ambas), activo | — |
+| `CargoDocente` | docente (FK), materia (FK), cargo (FK), dedicacion (FK), caracter (FK), fecha_inicio (null), fecha_fin (null), activo (default=True) | FK a Docente, Materia, Cargo, Dedicacion, Caracter. `save()` setea activo=False si fecha_fin pasó |
 
 ### usuarios
 
@@ -147,6 +151,10 @@ sacad/
 | `/areas/` | AreaViewSet | Auth | Secretario Académico |
 | `/dashboard/stats/` | Function GET | Auth | — |
 | `/docentes/` | DocenteViewSet | Auth (via menu_key "docentes" read) | Auth (via menu_key "docentes" write) |
+| `/cargos-docentes/` | CargoDocenteViewSet | Auth (via menu_key "docentes" read) | Auth (via menu_key "docentes" write) |
+| `/cargos/` | CargoViewSet | Auth (via menu_key "configuracion.designaciones" read) | Auth (via menu_key "configuracion.designaciones" write) |
+| `/dedicaciones/` | DedicacionViewSet | Auth (via menu_key "configuracion.designaciones" read) | Auth (via menu_key "configuracion.designaciones" write) |
+| `/caracteres/` | CaracterViewSet | Auth (via menu_key "configuracion.designaciones" read) | Auth (via menu_key "configuracion.designaciones" write) |
 
 ### Equivalencias (`/api/`)
 | Endpoint | Método | Descripción |
@@ -183,6 +191,10 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | AreaViewSet | AreaSerializer (con plan_estudio_codigo, materias_count) | AreaSerializer |
 | EquivalenciaViewSet | EquivalenciaSerializer (único) | EquivalenciaSerializer |
 | DocenteViewSet | DocenteSerializer (único) | DocenteSerializer |
+| CargoDocenteViewSet | CargoDocenteSerializer (con nested display fields) | CargoDocenteSerializer |
+| CargoViewSet | CargoSerializer (único) | CargoSerializer |
+| DedicacionViewSet | DedicacionSerializer (único) | DedicacionSerializer |
+| CaracterViewSet | CaracterSerializer (único) | CaracterSerializer |
 
 ## Backend — Filtros (django-filters)
 
@@ -196,6 +208,7 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | CorrelatividadViewSet | — | Sin filtros |
 | EquivalenciaViewSet | — | Filtro manual por plan_destino, materia_origen en get_queryset() |
 | DocenteViewSet | — | SearchFields: apellido, nombre, dni. Filtro GET `?activo=true/false`. |
+| CargoDocenteViewSet | — | SearchFields: docente__apellido, docente__nombre, materia__nombre, materia__codigo |
 
 ## Frontend — Páginas y estado
 
@@ -215,6 +228,8 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | Dominios permitidos | `pages/SACAD/GestionDominiosPage.tsx` | `/configuracion/dominios` |
 | Roles de usuarios | `pages/SACAD/GestionRolesPage.tsx` | `/configuracion/roles` |
 | Perfil | `pages/SACAD/ProfilePage.tsx` | `/profile` |
+| Cargos de Personas | `pages/SACAD/CargosPersonasPage.tsx` | `/cargos-personas` |
+| Designaciones | `pages/SACAD/GestionDesignacionesPage.tsx` | `/configuracion/designaciones` |
 
 ### ✅ Gestión (sin CRUD tradicional)
 | Página | Archivo | Ruta |
@@ -339,6 +354,13 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - **Menu keys**: agregado `("docentes", "Docentes")` a `GroupMenuPermission.MENU_KEYS` (ahora 14 opciones). Migración `0003_alter_groupmenupermission_menu_key` en usuarios.
 - **Podman support**: `docker-compose.podman.yml` con frontend en puerto 8080 (podman rootless no puede bind < 1024). `FRONTEND_URL` default `http://localhost:8080`. Makefile targets `podman-up` / `podman-down`.
 - **Backend container rebuild note**: el código backend está baked en la imagen Docker (no hay bind mount cached). Para cambios en backend, siempre: `docker compose build backend && docker compose up -d backend`. Los cambios en models.py generan migraciones automáticas por el entrypoint.
+- **CargoDocente model**: modelo `CargoDocente` creado con FK a Docente, Materia, Cargo, Dedicación, Carácter + fechas. Serializer con nested display fields. ViewSet con select_related y permisos docentes. URL `/api/cargos-docentes/`. Migración 0005.
+- **CargosPersonasPage**: página CRUD completa con modal 90vw, desplegables buscables para docente y materia (input + dropdown + filtro inline + click-outside), selects cascada, fechas condicionales según `caracter.requiere_fecha`. Ruta `/cargos-personas`, sidebar subítem "Docentes > Cargos".
+- **CargoDocente.activo**: campo `activo` agregado a CargoDocente (BooleanField default=True). `save()` override que setea `activo=False` si `fecha_fin` está en el pasado. Migración 0006.
+- **desactivar_cargos_vencidos command**: management command `desactivar_cargos_vencidos` que desactiva cargos con `fecha_fin < today`. Corre a demanda.
+- **Toggle switch activo**: CargosPersonasPage ahora tiene Switch "Cargo activo" en el modal + columna "Activo" en tabla con badge verde/rojo.
+- **Columna Vigencia**: tabla de cargos muestra fechas inicio/fin con formato `dd.mm.aaaa` en columna "Vigencia".
+- **formatDate utility**: creado `frontend/src/utils/dateFormat.ts` con función `formatDate(dateStr)` que retorna `dd.mm.yyyy`. Usado en CargosPersonasPage, GestionDominiosPage y AutorizacionUsuariosPage.
 
 ## Próximas tareas lógicas
 
@@ -468,3 +490,6 @@ Si una migración falla por conflictos de datos (ej: campo NOT NULL sin default 
 16. **Backend rebuild**: el código fuente del backend está baked en la imagen Docker (no hay bind mount cached). `docker compose restart backend` NO toma cambios de código. Siempre usar `docker compose build backend && docker compose up -d backend`.
 17. **DocentesPage CRUD pattern**: modal 90vw con grid `grid-cols-4`. Facultad ocupa `col-span-2` (selector con dropdown búscable). Luego fila de 4: apellido, nombre, dni, cuit_cuil (con guiones automáticos). Luego fila incompleta: legajo+checkbox, email, telefono. Switch activo/inactivo al fondo. Errores de API se muestran tanto por campo como en un banner general. Errores de conexión se muestran como banner "Error de conexión".
 18. **Menu keys migration**: al agregar un nuevo menu_key a `GroupMenuPermission.MENU_KEYS`, el entrypoint genera una migración `AlterField(choices=...)`. Esta migución debe ser copiada del container al host y commiteada. Si no se commitea, en otro entorno se regenerará automáticamente.
+19. **CargoDocente.activo**: modelo CargoDocente tiene campo `activo` (BooleanField default=True). Se desactiva automáticamente en `save()` si `fecha_fin < date.today()`. El management command `desactivar_cargos_vencidos` hace la limpieza batch a demanda.
+20. **formatDate utility**: `frontend/src/utils/dateFormat.ts` exporta `formatDate(dateStr: string | null): string` que convierte fechas ISO a formato `dd.mm.yyyy`. Usar en todos los displays de fecha. No cambiar el formato de intercambio de la API (sigue siendo ISO 8601 YYYY-MM-DD).
+21. **CargosPersonasPage pattern**: modal 90vw, grid `grid-cols-2` para persona+materia (desplegables con búsqueda inline + click-outside), grid `grid-cols-3` para cargo+dedicación+carácter (selects), fechas condicionales según `caracter.requiere_fecha`. Switch "Cargo activo" antes de los botones. Tabla con columnas: Persona, Materia, Cargo, Dedicación, Carácter, Vigencia (fechas dd.mm.aaaa), Carrera/Plan, Facultad, Activo (badge), Acciones.
