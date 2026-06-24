@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
@@ -17,26 +17,60 @@ interface NomencladorItem {
   codigo: string;
   descripcion: string;
   activo: boolean;
+  disciplina?: number;
+  disciplina_codigo?: string;
+  subdisciplina?: number;
+  subdisciplina_codigo?: string;
 }
 
-const TABS: { key: Tab; label: string; endpoint: string; title: string; desc: string }[] = [
+interface ParentItem {
+  id: number;
+  codigo: string;
+  descripcion: string;
+}
+
+interface TabConfig {
+  key: Tab;
+  label: string;
+  endpoint: string;
+  title: string;
+  desc: string;
+  parentEndpoint?: string;
+  parentKey?: string;
+  parentDisplay?: string;
+  parentLabel?: string;
+}
+
+const TABS: TabConfig[] = [
   { key: "disciplinas", label: "Disciplinas", endpoint: "/disciplinas/", title: "Disciplinas", desc: "Configurá las disciplinas del nomenclador." },
-  { key: "subdisciplinas", label: "Subdisciplinas", endpoint: "/subdisciplinas/", title: "Subdisciplinas", desc: "Configurá las subdisciplinas del nomenclador." },
-  { key: "especialidades", label: "Especialidades", endpoint: "/especialidades/", title: "Especialidades", desc: "Configurá las especialidades del nomenclador." },
+  { key: "subdisciplinas", label: "Subdisciplinas", endpoint: "/subdisciplinas/", title: "Subdisciplinas", desc: "Configurá las subdisciplinas del nomenclador.", parentEndpoint: "/disciplinas/", parentKey: "disciplina", parentDisplay: "disciplina_codigo", parentLabel: "Disciplina" },
+  { key: "especialidades", label: "Especialidades", endpoint: "/especialidades/", title: "Especialidades", desc: "Configurá las especialidades del nomenclador.", parentEndpoint: "/subdisciplinas/", parentKey: "subdisciplina", parentDisplay: "subdisciplina_codigo", parentLabel: "Subdisciplina" },
 ];
 
-function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: boolean }) {
+function NomencladorTable({ tab, canWrite }: { tab: TabConfig; canWrite: boolean }) {
   const { data, loading, refetch } = useApiData<{ results: NomencladorItem[] }>(tab.endpoint);
+  const [parents, setParents] = useState<ParentItem[]>([]);
   const items = data?.results ?? [];
+
+  useEffect(() => {
+    if (tab.parentEndpoint) {
+      apiClient.get(tab.parentEndpoint).then((res) => {
+        setParents(res.data?.results ?? []);
+      });
+    }
+  }, [tab.parentEndpoint]);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [codigo, setCodigo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [activo, setActivo] = useState(true);
+  const [parentId, setParentId] = useState<number | "">("");
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+
+  const hasParent = !!tab.parentKey;
 
   const openCreate = () => {
     setEditingId(null);
@@ -44,6 +78,7 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     setCodigo("");
     setDescripcion("");
     setActivo(true);
+    setParentId("");
     setError("");
   };
 
@@ -53,6 +88,7 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     setCodigo(item.codigo);
     setDescripcion(item.descripcion);
     setActivo(item.activo);
+    setParentId((item[tab.parentKey as keyof NomencladorItem] as number) ?? "");
     setError("");
   };
 
@@ -62,6 +98,7 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     setCodigo("");
     setDescripcion("");
     setActivo(true);
+    setParentId("");
     setError("");
   };
 
@@ -71,10 +108,17 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     if (!c) { setError("El código es obligatorio."); return; }
     if (!d) { setError("La descripción es obligatoria."); return; }
     if (c.length !== 2) { setError("El código debe tener exactamente 2 caracteres."); return; }
+    if (hasParent && !parentId) {
+      setError(`Seleccioná una ${tab.parentLabel?.toLowerCase()}.`);
+      return;
+    }
     setSaving(true);
     setError("");
     try {
       const payload: Record<string, unknown> = { codigo: c, descripcion: d, activo };
+      if (hasParent && tab.parentKey) {
+        payload[tab.parentKey] = parentId;
+      }
       if (editingId) {
         await apiClient.put(`${tab.endpoint}${editingId}/`, payload);
       } else {
@@ -107,6 +151,8 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     }
   };
 
+  const colSpan = hasParent ? 5 : 4;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -129,7 +175,22 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
             </div>
           )}
           <div className="flex items-end gap-3">
-            <div className="flex-1">
+            {hasParent && tab.parentEndpoint && (
+              <div className="flex-1">
+                <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">{tab.parentLabel}</label>
+                <select
+                  value={parentId}
+                  onChange={(e) => setParentId(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90"
+                >
+                  <option value="">Seleccioná...</option>
+                  {parents.map((p) => (
+                    <option key={p.id} value={p.id}>{p.codigo} - {p.descripcion}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className={`${hasParent ? "flex-1" : "flex-1"}`}>
               <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Código (2 caracteres)</label>
               <input
                 type="text"
@@ -141,7 +202,7 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
                 className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-gray-700 bg-transparent text-gray-800 dark:text-white/90 placeholder-gray-400"
               />
             </div>
-            <div className="flex-[3]">
+            <div className="flex-[2]">
               <label className="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Descripción</label>
               <input
                 type="text"
@@ -162,7 +223,7 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
               />
               <label htmlFor="nomenclador-activo" className="text-xs text-gray-600 dark:text-gray-400">Activo</label>
             </div>
-            <Button size="sm" onClick={handleSave} disabled={saving || !codigo.trim() || !descripcion.trim()}>
+            <Button size="sm" onClick={handleSave} disabled={saving || !codigo.trim() || !descripcion.trim() || (hasParent && !parentId)}>
               {saving ? "Guardando..." : editingId ? "Guardar" : "Crear"}
             </Button>
             <Button size="sm" variant="outline" onClick={cancel}>Cancelar</Button>
@@ -174,6 +235,7 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
         <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
+              {hasParent && <th className="px-4 py-3 w-28">{tab.parentLabel}</th>}
               <th className="px-4 py-3 w-28">Código</th>
               <th className="px-4 py-3">Descripción</th>
               <th className="px-4 py-3 w-28">Estado</th>
@@ -182,12 +244,17 @@ function NomencladorTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center">Cargando...</td></tr>
+              <tr><td colSpan={colSpan} className="px-4 py-8 text-center">Cargando...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">No hay registros.</td></tr>
+              <tr><td colSpan={colSpan} className="px-4 py-8 text-center text-gray-400">No hay registros.</td></tr>
             ) : (
               items.map((item) => (
                 <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700">
+                  {hasParent && (
+                    <td className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 uppercase">
+                      {item[tab.parentDisplay as keyof NomencladorItem] as string}
+                    </td>
+                  )}
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 uppercase">{item.codigo}</td>
                   <td className="px-4 py-3 text-gray-800 dark:text-white/90">{item.descripcion}</td>
                   <td className="px-4 py-3">

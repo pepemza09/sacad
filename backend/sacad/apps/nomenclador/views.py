@@ -29,8 +29,9 @@ class DisciplinaViewSet(viewsets.ModelViewSet):
 
 
 class SubdisciplinaViewSet(viewsets.ModelViewSet):
-    queryset = Subdisciplina.objects.all()
+    queryset = Subdisciplina.objects.select_related("disciplina").all()
     serializer_class = SubdisciplinaSerializer
+    filterset_fields = ["disciplina"]
 
     def check_permissions(self, request):
         super().check_permissions(request)
@@ -45,8 +46,11 @@ class SubdisciplinaViewSet(viewsets.ModelViewSet):
 
 
 class EspecialidadViewSet(viewsets.ModelViewSet):
-    queryset = Especialidad.objects.all()
+    queryset = Especialidad.objects.select_related(
+        "subdisciplina__disciplina"
+    ).all()
     serializer_class = EspecialidadSerializer
+    filterset_fields = ["subdisciplina"]
 
     def check_permissions(self, request):
         super().check_permissions(request)
