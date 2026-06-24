@@ -6,10 +6,12 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
+import Switch from "../../components/form/switch/Switch";
 import { PencilIcon, TrashBinIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { formatDate } from "../../utils/dateFormat";
 
 interface CargoDocente {
   id: number;
@@ -34,6 +36,7 @@ interface CargoDocente {
   caracter_requiere_fecha: string;
   fecha_inicio: string | null;
   fecha_fin: string | null;
+  activo: boolean;
 }
 
 interface CargoDocenteForm {
@@ -44,6 +47,7 @@ interface CargoDocenteForm {
   caracter: number;
   fecha_inicio: string;
   fecha_fin: string;
+  activo: boolean;
 }
 
 interface FieldErrors {
@@ -58,6 +62,7 @@ const emptyForm: CargoDocenteForm = {
   caracter: 0,
   fecha_inicio: "",
   fecha_fin: "",
+  activo: true,
 };
 
 export default function CargosPersonasPage() {
@@ -169,6 +174,7 @@ export default function CargosPersonasPage() {
       caracter: item.caracter,
       fecha_inicio: item.fecha_inicio ?? "",
       fecha_fin: item.fecha_fin ?? "",
+      activo: item.activo,
     });
     setSelectedCaracter({ requiere_fecha: item.caracter_requiere_fecha });
     setDocenteSearch(item.docente_nombre);
@@ -291,16 +297,18 @@ export default function CargosPersonasPage() {
                 <th className="px-4 py-3">Cargo</th>
                 <th className="px-4 py-3">Dedicación</th>
                 <th className="px-4 py-3">Carácter</th>
+                <th className="px-4 py-3">Vigencia</th>
                 <th className="px-4 py-3">Carrera / Plan</th>
                 <th className="px-4 py-3">Facultad</th>
+                <th className="px-4 py-3">Activo</th>
                 {canWrite && <th className="px-4 py-3">Acciones</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={canWrite ? 8 : 7} className="px-4 py-8 text-center">Cargando...</td></tr>
+                <tr><td colSpan={canWrite ? 10 : 9} className="px-4 py-8 text-center">Cargando...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={canWrite ? 8 : 7} className="px-4 py-8 text-center text-gray-400">No hay cargos registrados.</td></tr>
+                <tr><td colSpan={canWrite ? 10 : 9} className="px-4 py-8 text-center text-gray-400">No hay cargos registrados.</td></tr>
               ) : (
                 filtered.map((c) => (
                   <tr key={c.id} className="border-b border-gray-200 dark:border-gray-700">
@@ -309,8 +317,21 @@ export default function CargosPersonasPage() {
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">{c.cargo_descripcion}</td>
                     <td className="px-4 py-3">{c.dedicacion_descripcion}</td>
                     <td className="px-4 py-3">{c.caracter_descripcion}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {c.fecha_inicio ? `Desde ${formatDate(c.fecha_inicio)}` : "—"}
+                      {c.fecha_fin ? ` hasta ${formatDate(c.fecha_fin)}` : ""}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{c.carrera_nombre} / {c.plan_estudio_codigo}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">{c.facultad_nombre}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        c.activo
+                          ? "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500"
+                          : "bg-error-50 text-error-700 dark:bg-error-500/15 dark:text-error-500"
+                      }`}>
+                        {c.activo ? "Sí" : "No"}
+                      </span>
+                    </td>
                     {canWrite && (
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -507,7 +528,15 @@ export default function CargosPersonasPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 px-2 mt-6">
+            <div className="px-2 mt-6">
+              <Switch
+                label="Cargo activo"
+                defaultChecked={form.activo}
+                onChange={(checked) => setForm({ ...form, activo: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-2 mt-4">
               <Button size="sm" variant="outline" onClick={close}>Cancelar</Button>
               <Button size="sm" disabled={saving}>
                 {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear cargo"}

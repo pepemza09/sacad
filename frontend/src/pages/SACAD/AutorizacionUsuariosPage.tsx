@@ -9,6 +9,7 @@ import { UserCheckIcon, CheckLineIcon, CloseLineIcon, AngleLeftIcon } from "../.
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { formatDate } from "../../utils/dateFormat";
 
 interface UserItem {
   id: number;
@@ -37,16 +38,7 @@ const STATUS_STYLES: Record<string, string> = {
     "bg-error-50 text-error-700 dark:bg-error-500/15 dark:text-error-500",
 };
 
-function formatDate(d: string | null) {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("es-AR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+
 
 export default function AutorizacionUsuariosPage() {
   const { user } = useAuth();

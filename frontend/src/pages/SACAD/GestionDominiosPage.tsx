@@ -9,6 +9,7 @@ import { PlusIcon, TrashBinIcon, AngleLeftIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { formatDate } from "../../utils/dateFormat";
 
 interface DomainItem {
   id: number;
@@ -131,9 +132,7 @@ export default function GestionDominiosPage() {
                         {d.domain}
                       </td>
                       <td className="px-4 py-3 text-xs">
-                        {new Date(d.created_at).toLocaleDateString("es-AR", {
-                          year: "numeric", month: "long", day: "numeric",
-                        })}
+                        {formatDate(d.created_at)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="relative group inline-block">

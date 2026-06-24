@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.db import models
 from django.core.validators import RegexValidator
 
@@ -116,11 +118,17 @@ class CargoDocente(models.Model):
     )
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_fin = models.DateField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Cargo de Docente"
         verbose_name_plural = "Cargos de Docentes"
         ordering = ["docente__apellido", "docente__nombre", "materia__nombre"]
+
+    def save(self, *args, **kwargs):
+        if self.fecha_fin and self.fecha_fin < date.today():
+            self.activo = False
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.docente} - {self.cargo} en {self.materia}"
