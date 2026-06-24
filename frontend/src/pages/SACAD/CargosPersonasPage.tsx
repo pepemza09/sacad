@@ -177,7 +177,7 @@ export default function CargosPersonasPage() {
       activo: item.activo,
     });
     setSelectedCaracter({ requiere_fecha: item.caracter_requiere_fecha });
-    setDocenteSearch(item.docente_nombre);
+    setDocenteSearch(item.docente_nombre.replace(/^([^,]+)/, (m) => m.toUpperCase()));
     setMateriaSearch(`${item.materia_codigo} - ${item.materia_nombre}`);
     setDocenteDropdownOpen(false);
     setMateriaDropdownOpen(false);
@@ -312,7 +312,9 @@ export default function CargosPersonasPage() {
               ) : (
                 filtered.map((c) => (
                   <tr key={c.id} className="border-b border-gray-200 dark:border-gray-700">
-                    <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">{c.docente_nombre}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">
+                      {c.docente_nombre.replace(/^([^,]+)/, (m) => m.toUpperCase())}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{c.materia_codigo} - {c.materia_nombre}</td>
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">{c.cargo_descripcion}</td>
                     <td className="px-4 py-3">{c.dedicacion_descripcion}</td>
@@ -405,11 +407,12 @@ export default function CargosPersonasPage() {
                             }`}
                             onClick={() => {
                               setForm({ ...form, docente: d.id as number });
-                              setDocenteSearch(`${(d.apellido as string)}, ${(d.nombre as string)}`);
+                              const ap = (d.apellido as string || "").toUpperCase();
+                              setDocenteSearch(`${ap}, ${(d.nombre as string)}`);
                               setDocenteDropdownOpen(false);
                             }}
                           >
-                            {(d.apellido as string)}, {(d.nombre as string)}
+                            {(d.apellido as string || "").toUpperCase()}, {(d.nombre as string)}
                           </button>
                         ))
                       )}
