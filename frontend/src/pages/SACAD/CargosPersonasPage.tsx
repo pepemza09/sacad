@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useApiData } from "../../hooks/useApiData";
@@ -91,6 +91,44 @@ export default function CargosPersonasPage() {
 
   const [selectedCaracter, setSelectedCaracter] = useState<{ requiere_fecha: string } | null>(null);
 
+  const [docenteSearch, setDocenteSearch] = useState("");
+  const [docenteDropdownOpen, setDocenteDropdownOpen] = useState(false);
+  const docenteRef = useRef<HTMLDivElement>(null);
+  const [materiaSearch, setMateriaSearch] = useState("");
+  const [materiaDropdownOpen, setMateriaDropdownOpen] = useState(false);
+  const materiaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (docenteRef.current && !docenteRef.current.contains(e.target as Node)) {
+        setDocenteDropdownOpen(false);
+      }
+      if (materiaRef.current && !materiaRef.current.contains(e.target as Node)) {
+        setMateriaDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const docentesFiltered = docenteSearch
+    ? docentes.filter((d: Record<string, unknown>) => {
+        const ap = (d.apellido as string || "").toLowerCase();
+        const nom = (d.nombre as string || "").toLowerCase();
+        const q = docenteSearch.toLowerCase();
+        return ap.includes(q) || nom.includes(q) || `${ap} ${nom}`.includes(q) || `${nom} ${ap}`.includes(q);
+      })
+    : docentes;
+
+  const materiasFiltered = materiaSearch
+    ? materias.filter((m: Record<string, unknown>) => {
+        const cod = (m.codigo as string || "").toLowerCase();
+        const nom = (m.nombre as string || "").toLowerCase();
+        const q = materiaSearch.toLowerCase();
+        return cod.includes(q) || nom.includes(q);
+      })
+    : materias;
+
   useEffect(() => {
     if (form.caracter) {
       const c = caracteres.find((c: Record<string, unknown>) => c.id === form.caracter);
@@ -114,6 +152,10 @@ export default function CargosPersonasPage() {
     setSelectedCaracter(null);
     setErrors({});
     setFormError("");
+    setDocenteSearch("");
+    setMateriaSearch("");
+    setDocenteDropdownOpen(false);
+    setMateriaDropdownOpen(false);
     setOpen(true);
   };
 
@@ -129,6 +171,10 @@ export default function CargosPersonasPage() {
       fecha_fin: item.fecha_fin ?? "",
     });
     setSelectedCaracter({ requiere_fecha: item.caracter_requiere_fecha });
+    setDocenteSearch(item.docente_nombre);
+    setMateriaSearch(`${item.materia_codigo} - ${item.materia_nombre}`);
+    setDocenteDropdownOpen(false);
+    setMateriaDropdownOpen(false);
     setErrors({});
     setFormError("");
     setOpen(true);
@@ -304,32 +350,96 @@ export default function CargosPersonasPage() {
               )}
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="relative" ref={docenteRef}>
                   <Label>Persona</Label>
-                  <select
-                    value={form.docente}
-                    onChange={(e) => setForm({ ...form, docente: Number(e.target.value) })}
-                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-                  >
-                    <option value={0}>Seleccioná...</option>
-                    {docentes.map((d: Record<string, unknown>) => (
-                      <option key={d.id as number} value={d.id as number}>{d.apellido as string}, {d.nombre as string}</option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    placeholder="Buscá una persona..."
+                    value={docenteSearch}
+                    onChange={(e) => {
+                      setDocenteSearch(e.target.value);
+                      setForm({ ...form, docente: 0 });
+                      setDocenteDropdownOpen(true);
+                    }}
+                    onFocus={() => setDocenteDropdownOpen(true)}
+                    className={`h-11 w-full rounded-lg border bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 placeholder-gray-400 ${
+                      errors.docente
+                        ? "border-error-500"
+                        : "border-gray-300 dark:border-gray-700"
+                    }`}
+                  />
+                  {docenteDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                      {docentesFiltered.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-400">Sin resultados</div>
+                      ) : (
+                        docentesFiltered.map((d: Record<string, unknown>) => (
+                          <button
+                            key={d.id as number}
+                            type="button"
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                              form.docente === (d.id as number)
+                                ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                                : "text-gray-800 dark:text-white/90"
+                            }`}
+                            onClick={() => {
+                              setForm({ ...form, docente: d.id as number });
+                              setDocenteSearch(`${(d.apellido as string)}, ${(d.nombre as string)}`);
+                              setDocenteDropdownOpen(false);
+                            }}
+                          >
+                            {(d.apellido as string)}, {(d.nombre as string)}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                   {errors.docente && <p className="mt-1 text-xs text-error-500">{errors.docente}</p>}
                 </div>
-                <div>
+                <div className="relative" ref={materiaRef}>
                   <Label>Materia</Label>
-                  <select
-                    value={form.materia}
-                    onChange={(e) => setForm({ ...form, materia: Number(e.target.value) })}
-                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-                  >
-                    <option value={0}>Seleccioná...</option>
-                    {materias.map((m: Record<string, unknown>) => (
-                      <option key={m.id as number} value={m.id as number}>{m.codigo as string} - {m.nombre as string}</option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    placeholder="Buscá una materia..."
+                    value={materiaSearch}
+                    onChange={(e) => {
+                      setMateriaSearch(e.target.value);
+                      setForm({ ...form, materia: 0 });
+                      setMateriaDropdownOpen(true);
+                    }}
+                    onFocus={() => setMateriaDropdownOpen(true)}
+                    className={`h-11 w-full rounded-lg border bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 placeholder-gray-400 ${
+                      errors.materia
+                        ? "border-error-500"
+                        : "border-gray-300 dark:border-gray-700"
+                    }`}
+                  />
+                  {materiaDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                      {materiasFiltered.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-400">Sin resultados</div>
+                      ) : (
+                        materiasFiltered.map((m: Record<string, unknown>) => (
+                          <button
+                            key={m.id as number}
+                            type="button"
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                              form.materia === (m.id as number)
+                                ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                                : "text-gray-800 dark:text-white/90"
+                            }`}
+                            onClick={() => {
+                              setForm({ ...form, materia: m.id as number });
+                              setMateriaSearch(`${(m.codigo as string)} - ${(m.nombre as string)}`);
+                              setMateriaDropdownOpen(false);
+                            }}
+                          >
+                            {(m.codigo as string)} - {(m.nombre as string)}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                   {errors.materia && <p className="mt-1 text-xs text-error-500">{errors.materia}</p>}
                 </div>
               </div>
