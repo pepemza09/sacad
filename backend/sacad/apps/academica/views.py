@@ -134,11 +134,27 @@ class PlanEstudioViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        n = instance.materias.count()
-        if n:
+        n_materias = instance.materias.count()
+        if n_materias:
             return Response(
                 {
-                    "detail": f"Plan no eliminable: tiene {n} materia{'s' if n != 1 else ''} asociada{'s' if n != 1 else ''}. Eliminá las materias primero."
+                    "detail": f"Plan no eliminable: tiene {n_materias} materia{'s' if n_materias != 1 else ''} asociada{'s' if n_materias != 1 else ''}. Eliminá las materias primero."
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        n_areas = instance.areas.count()
+        if n_areas:
+            return Response(
+                {
+                    "detail": f"Plan no eliminable: tiene {n_areas} área{'s' if n_areas != 1 else ''} asociada{'s' if n_areas != 1 else ''}. Eliminá las áreas primero."
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        n_equis = instance.equivalencias_destino.count()
+        if n_equis:
+            return Response(
+                {
+                    "detail": f"Plan no eliminable: está referenciado en {n_equis} equivalencia{'s' if n_equis != 1 else ''} como destino. Eliminá las equivalencias primero."
                 },
                 status=status.HTTP_409_CONFLICT,
             )
@@ -199,6 +215,12 @@ class MateriaViewSet(viewsets.ModelViewSet):
         if n_dest:
             return Response(
                 {"detail": f"Materia no eliminable: está referenciada en {n_dest} equivalencia{'s' if n_dest != 1 else ''} como destino. Eliminá las equivalencias primero."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        n_cargos = instance.cargos_docentes.count()
+        if n_cargos:
+            return Response(
+                {"detail": f"Materia no eliminable: está asignada a {n_cargos} cargo{'s' if n_cargos != 1 else ''} docente. Eliminá los cargos primero."},
                 status=status.HTTP_409_CONFLICT,
             )
         self.perform_destroy(instance)
@@ -266,3 +288,14 @@ class TipoMateriaViewSet(viewsets.ModelViewSet):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [EsSecretarioAcademico()]
         return [IsAuthenticated()]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        n = instance.materias.count()
+        if n:
+            return Response(
+                {"detail": f"Tipo de materia no eliminable: tiene {n} materia{'s' if n != 1 else ''} asociada{'s' if n != 1 else ''}. Eliminá las materias primero."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
