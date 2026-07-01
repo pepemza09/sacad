@@ -23,7 +23,8 @@ sacad/
 │   │       ├── academica/    # Facultades, Sedes, Carreras, Planes, Materias, Correlatividades, TipoMateria, Area
 │   │       ├── usuarios/     # Auth, Profile, AllowedDomain, Google OAuth
 │   │       ├── equivalencias/# Equivalencias entre materias + motor de resolución en cascada
-│   │       └── docentes/     # Docentes (CRUD completo con CUIT/CUIL, legajo)
+│   │       ├── docentes/     # Docentes (CRUD completo con CUIT/CUIL, legajo)
+│   │       └── nomenclador/  # Disciplinas, Subdisciplinas, Especialidades (jer. 3 niveles)
 │   └── manage.py
 ├── frontend/
 │   ├── src/
@@ -61,6 +62,8 @@ sacad/
 - **Backend usuarios views**: `backend/sacad/apps/usuarios/views.py`
 - **Backend usuarios adapter (Google OAuth)**: `backend/sacad/apps/usuarios/adapters.py`
 - **Backend equivalencias engine**: `backend/sacad/apps/equivalencias/engine.py`
+- **Backend nomenclador views**: `backend/sacad/apps/nomenclador/views.py`
+- **Backend nomenclador urls**: `backend/sacad/apps/nomenclador/urls.py`
 - **Frontend API services**: `frontend/src/api/services.ts`
 - **Frontend AuthContext**: `frontend/src/context/auth/AuthContext.tsx`
 - **Frontend App.tsx (rutas)**: `frontend/src/App.tsx`
@@ -99,6 +102,14 @@ sacad/
 | `Profile` | user (OneToOne), foto, approval_status (pending/approved/rejected), approved_at, rejected_at, zoom_level (50-200) |
 | `AllowedDomain` | domain (unique), created_at |
 | `GroupMenuPermission` | group (FK->Group), menu_key (str), can_read, can_write | unique_together: (group, menu_key). 14 menús definidos en `GroupMenuPermission.MENU_KEYS`. |
+
+### nomenclador
+
+| Modelo | Campos clave | Relaciones |
+|--------|-------------|------------|
+| `Disciplina` | codigo (unique), nombre, descripcion | — |
+| `Subdisciplina` | codigo (unique), nombre, descripcion, disciplina (FK) | FK → Disciplina |
+| `Especialidad` | codigo (unique), nombre, descripcion, subdisciplina (FK) | FK → Subdisciplina |
 
 ### equivalencias
 
@@ -164,6 +175,14 @@ sacad/
 | `/equivalencias/consultar/` | GET | Resolución en cascada (BFS) |
 | `/equivalencias/validar/` | POST | Validar ciclos |
 
+### Nomenclador (`/api/`)
+| Endpoint | ViewSet | Permiso |
+|----------|---------|---------|
+| `/entradas/` | Function GET/POST | configuracion.nomenclador read/write. GET: solo nodos hoja. POST: crea jerarquía. |
+| `/disciplinas/` | DisciplinaViewSet | configuracion.nomenclador read/write |
+| `/subdisciplinas/` | SubdisciplinaViewSet | configuracion.nomenclador read/write |
+| `/especialidades/` | EspecialidadViewSet | configuracion.nomenclador read/write |
+
 ## Backend — Permisos
 
 | Clase | Lógica | Aplica a |
@@ -172,6 +191,7 @@ sacad/
 | `EsSecretarioAcademico` | `is_superuser OR tiene_permiso_menu(user, "sedes"/"carreras"/etc, require_write=True)` | Sede, Carrera, Plan, TipoMateria, Area write |
 | `EsDirectorCarrera` | `is_superuser OR tiene_permiso_menu(user, "materias", require_write=True)` | Materia, Correlatividad write |
 | `DocenteViewSet` | `is_superuser OR tiene_permiso_menu(user, "docentes", require_write=True)` para write; `tiene_permiso_menu(user, "docentes", require_read=True)` para read | Docentes CRUD |
+| Nomenclador views | `tiene_permiso_menu(user, "configuracion.nomenclador", require_read/write)` | Disciplina, Subdisciplina, Especialidad CRUD |
 
 No hay hardcoding de nombres de grupo (`"Admin Universidad"`, `"Secretario Académico"`, `"Director Carrera"`) en ninguna permission class. Todo pasa por `GroupMenuPermission`.
 
@@ -195,6 +215,9 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | CargoViewSet | CargoSerializer (único) | CargoSerializer |
 | DedicacionViewSet | DedicacionSerializer (único) | DedicacionSerializer |
 | CaracterViewSet | CaracterSerializer (único) | CaracterSerializer |
+| DisciplinaViewSet | DisciplinaSerializer | DisciplinaSerializer |
+| SubdisciplinaViewSet | SubdisciplinaSerializer | SubdisciplinaSerializer |
+| EspecialidadViewSet | EspecialidadSerializer | EspecialidadSerializer |
 
 ## Backend — Filtros (django-filters)
 
@@ -230,6 +253,7 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | Perfil | `pages/SACAD/ProfilePage.tsx` | `/profile` |
 | Cargos de Personas | `pages/SACAD/CargosPersonasPage.tsx` | `/cargos-personas` |
 | Designaciones | `pages/SACAD/GestionDesignacionesPage.tsx` | `/configuracion/designaciones` |
+| Nomenclador | `pages/SACAD/GestionNomencladorPage.tsx` | `/configuracion/nomenclador` |
 
 ### ✅ Gestión (sin CRUD tradicional)
 | Página | Archivo | Ruta |
@@ -301,16 +325,17 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - **Voseo**: Todos los mensajes de error usan "vos" (ej: "Completá", "seleccioná", "tenés"). No usar "tú" ni "usted".
 - **No necesitás makemigrations manual**: el entrypoint del container ya ejecuta `makemigrations --noinput` al arrancar. Si hay cambios en models.py, se generan automáticamente. En desarrollo local, `makemigrations` solo se corre si se quiere trackear migraciones.
 - **Importante backend**: el código fuente del backend se copia dentro de la imagen Docker. NO hay bind mount cached. Para que un cambio en backend surta efecto, hay que hacer `docker compose build backend && docker compose up -d backend`. No alcanza con restart.
-- **No hay seed data**: los seeders fueron eliminados. La DB está vacía (flush). Para probar hay que cargar datos manualmente desde el frontend.
+- **No hay seed data**: los seeders fueron eliminados. Para probar hay que cargar datos manualmente desde el frontend o restaurar el backup con `loaddata`.
 - **seed*.py están gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` no se trackea.
 
 ## Frontend — Gaps conocidos
 
 1. **No hay UI de correlatividades** — Mayor gap. No hay forma de gestionar correlatividades (crear/eliminar prerrequisitos). Backend soporta CRUD completo.
 2. ~~**EquivalenciasPage** — Botones create/edit/delete visibles a todos los usuarios autenticados (falta `canWrite`).~~ ✅ Ahora con `canWrite`.
-3. **MateriasPage** — No hay filtro por plan_estudio (el backend lo soporta).
-4. **EquivalenciasPage** — No hay filtro por plan_destino en la lista registrada.
-5. **Servicios no utilizados** — `academicaApi.createMateria`, `updateMateria`, `deleteMateria`, `createCorrelatividad`, `deleteCorrelatividad` definidos en `services.ts` pero no usados (las páginas llaman `apiClient` directamente).
+3. ~~**Nomenclador** — Tabla plana con búsqueda unificada, uppercase, padStart.~~ ✅ Implementado.
+4. **MateriasPage** — No hay filtro por plan_estudio (el backend lo soporta).
+5. **EquivalenciasPage** — No hay filtro por plan_destino en la lista registrada.
+6. **Servicios no utilizados** — `academicaApi.createMateria`, `updateMateria`, `deleteMateria`, `createCorrelatividad`, `deleteCorrelatividad` definidos en `services.ts` pero no usados (las páginas llaman `apiClient` directamente).
 
 ## Frontend — Cambios recientes (histórico para agentes)
 
@@ -361,6 +386,14 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - **Toggle switch activo**: CargosPersonasPage ahora tiene Switch "Cargo activo" en el modal + columna "Activo" en tabla con badge verde/rojo.
 - **Columna Vigencia**: tabla de cargos muestra fechas inicio/fin con formato `dd.mm.aaaa` en columna "Vigencia".
 - **formatDate utility**: creado `frontend/src/utils/dateFormat.ts` con función `formatDate(dateStr)` que retorna `dd.mm.yyyy`. Usado en CargosPersonasPage, GestionDominiosPage y AutorizacionUsuariosPage.
+- **DocenteViewSet.destroy()**: agregado `destroy()` que impide eliminar Docente si tiene CargoDocente asociado (retorna 409 con detail). Verifica manualmente antes de borrar.
+- **SedeViewSet.destroy()**: agregado check de `cargos_docentes` que impide eliminar Sede si hay CargoDocente vinculado (retorna 409).
+- **Nomenclador endpoint plano `/api/entradas/`**: creado `entradas_nomenclador` view function que lista (GET, solo nodos hoja) y crea (POST) entradas de nomenclador en formato plano. Helper `_serializar_entrada()`. Ruta registrada en `nomenclador/urls.py`.
+- **GestionNomencladorPage rediseñada**: tabla plana sin columna Tipo, formulario inline con 3 inputs de código (2 chars c/u, padStart onBlur), input de nombre en uppercase (onChange .toUpperCase()), búsqueda unificada sin filtros por nivel, DELETE corregido a `/${tipo}/${pk}/`.
+- **Materias ordering**: `ordering = ["codigo", "plan_estudio__carrera__codigo", "nombre"]` en MateriaViewSet.
+- **Materias paginación**: agregado estado `page`, llamado paginado a la API, UI con Anterior/Siguiente y contador de registros en MateriasPage.tsx. Se resetea a página 1 al cambiar búsqueda.
+- **CSS minify warning fix**: deshabilitado `build.cssMinify` en `vite.config.ts` para eliminar warnings de `:is()` vacío generados por Tailwind v4.
+- **Backup dumpdata**: creado `backups/sacad_data.json` (75 registros, excluye contenttypes/auth.Permission/admin.LogEntry/sessions) y copiado a `/tmp/sacad_data.json` en el container.
 
 ## Próximas tareas lógicas
 
@@ -371,8 +404,10 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - Eliminar correlativa via `DELETE /correlatividades/{id}/`
 - Permisos: solo `EsDirectorCarrera` (via GroupMenuPermission "materias")
 
-### 2. No hay seed data
-- Los seeders fueron eliminados del repositorio. La DB está vacía (flush). Para probar hay que cargar datos manualmente desde el frontend.
+### 2. Backup de datos cargados
+- Existe `backups/sacad_data.json` (75 registros) con datos reales cargados desde el frontend.
+- Para restaurar: `docker compose exec backend python manage.py loaddata /tmp/sacad_data.json`.
+- La copia en /tmp/ del container es la más reciente.
 
 ### 3. Plan 2026 — Códigos
 | Año | Período | Códigos |
@@ -395,11 +430,16 @@ Para cursar cuarto año → 100% hasta 2do año aprobado + 4 espacios de 3er añ
 - Verificar que pueda crear/editar/eliminar en todos los módulos (facultades, sedes, carreras, planes, áreas, materias, docentes, equivalencias, tipos-materia, dominios, roles, usuarios).
 - Verificar que un usuario sin permisos no pueda escribir ni vea menús restringidos.
 
-### 6. MateriasPage — filtro por plan de estudio
+### 6. Verificar permisos en producción
+- victor.costa@fce.uncu.edu.ar tiene `is_staff=False`, grupo "administrador", `can_write=True` en todos los menús.
+- Verificar que pueda crear/editar/eliminar en todos los módulos (facultades, sedes, carreras, planes, áreas, materias, docentes, equivalencias, tipos-materia, dominios, roles, usuarios).
+- Verificar que un usuario sin permisos no pueda escribir ni vea menús restringidos.
+
+### 7. MateriasPage — filtro por plan de estudio
 - El backend ya soporta filtro `?plan_estudio=X` via `MateriaFilter`
 - El frontend no expone este filtro en la UI
 
-### 7. Docentes — próximas mejoras posibles
+### 8. Docentes — próximas mejoras posibles
 - Flat sidebar: eliminar categoría "Docentes" con sub-item, poner "Docentes" directamente en nav principal
 - Filtro adicional por facultad en DocentesPage
 - Exportar lista de docentes a CSV/Excel
@@ -434,6 +474,11 @@ make podman-down
 
 # Shell de Django
 docker compose exec backend python manage.py shell
+
+# Backup / Restore
+docker compose exec backend python manage.py dumpdata --natural-foreign --natural-primary -e contenttypes -e auth.Permission -e admin.LogEntry -e sessions > backups/sacad_data.json
+docker compose cp backups/sacad_data.json backend:/tmp/sacad_data.json
+docker compose exec backend python manage.py loaddata /tmp/sacad_data.json
 ```
 
 ## Workflow de cambios en la base de datos
@@ -477,7 +522,7 @@ Si una migración falla por conflictos de datos (ej: campo NOT NULL sin default 
 3. **No usar ProtectedError**: en ningún view. Siempre `Response({"detail": mensaje}, 409)`.
 4. **Modal pattern**: `max-w-[...]` en className (no `!w-[...]`), contentClasses tiene `w-full` fijo. Los botones de formulario siempre van al fondo (flex justify-end), nunca en medio de los campos.
 5. **Seed scripts gitignored**: cualquier archivo que coincida con `seed*.py` bajo `management/commands/` está en `.gitignore`. El comando `seed_data.py` fue eliminado del repositorio.
-6. **DB actualmente limpia**: flusheada. No hay datos cargados. Hay que cargarlos manualmente desde el frontend.
+6. **DB actualmente con datos**: hay un backup en `backups/sacad_data.json` con 75 registros (facultades, sedes, carreras, planes, materias, áreas, nomenclador, usuarios, grupos, permisos). Restaurar con `loaddata` si la DB está vacía.
 7. **Permisos por menú**: los grupos ahora tienen `GroupMenuPermission` con permisos de lectura/escritura por menú. La lógica de autorización backend para vistas normales es: `is_staff OR tiene_permiso_menu()`. Para ViewSets de académica: `superuser OR GroupMenuPermission` (sin hardcoding de nombres de grupo). En frontend: `useMenuPermissions().canWrite("menuKey")` combinado con `user?.is_superuser`.
 8. **UserDropdown**: solo muestra "Mi Perfil" y "Cerrar Sesión". No hay notificaciones reales implementadas.
 9. **canWrite en frontend**: ahora solo usa `user?.is_superuser || canWriteMenu("menuKey")`. Sin `user?.group_names?.includes(...)`. El hook `useMenuPermissions` usa `useCallback` para `canRead`/`canWrite` con dependencias `[configured, perms]` para evitar referencias inestables. Tiene polling cada 30s via `setInterval(refetch, 30000)`.
@@ -486,10 +531,16 @@ Si una migración falla por conflictos de datos (ej: campo NOT NULL sin default 
 12. **`createuser` command**: `python manage.py createuser email@ejemplo.com --password x` crea superadmin + Profile APPROVED. No crea grupos ni permisos.
 13. **Materia**: `carga_horaria_semanal` y `tipo` son `null=True, blank=True` desde migración 0005.
 14. **Docente.cuit_cuil**: tiene `null=True` además de `unique=True`. Esto permite que múltiples docentes tengan CUIT/CUIL vacío sin violar la restricción unique (Django no compara NULLs).
-15. **Grupos de menú**: hoy son 14 menús: dashboard, facultades, sedes, carreras, planes, areas, materias, docentes, equivalencias, configuracion, configuracion.usuarios, configuracion.dominios, configuracion.roles, configuracion.tipos-materia.
+15. **Grupos de menú**: hoy son 16 menús: dashboard, facultades, sedes, carreras, planes, areas, materias, docentes, equivalencias, configuracion, configuracion.usuarios, configuracion.dominios, configuracion.roles, configuracion.tipos-materia, configuracion.designaciones, configuracion.nomenclador.
 16. **Backend rebuild**: el código fuente del backend está baked en la imagen Docker (no hay bind mount cached). `docker compose restart backend` NO toma cambios de código. Siempre usar `docker compose build backend && docker compose up -d backend`.
 17. **DocentesPage CRUD pattern**: modal 90vw con grid `grid-cols-4`. Facultad ocupa `col-span-2` (selector con dropdown búscable). Luego fila de 4: apellido, nombre, dni, cuit_cuil (con guiones automáticos). Luego fila incompleta: legajo+checkbox, email, telefono. Switch activo/inactivo al fondo. Errores de API se muestran tanto por campo como en un banner general. Errores de conexión se muestran como banner "Error de conexión".
 18. **Menu keys migration**: al agregar un nuevo menu_key a `GroupMenuPermission.MENU_KEYS`, el entrypoint genera una migración `AlterField(choices=...)`. Esta migución debe ser copiada del container al host y commiteada. Si no se commitea, en otro entorno se regenerará automáticamente.
 19. **CargoDocente.activo**: modelo CargoDocente tiene campo `activo` (BooleanField default=True). Se desactiva automáticamente en `save()` si `fecha_fin < date.today()`. El management command `desactivar_cargos_vencidos` hace la limpieza batch a demanda.
 20. **formatDate utility**: `frontend/src/utils/dateFormat.ts` exporta `formatDate(dateStr: string | null): string` que convierte fechas ISO a formato `dd.mm.yyyy`. Usar en todos los displays de fecha. No cambiar el formato de intercambio de la API (sigue siendo ISO 8601 YYYY-MM-DD).
 21. **CargosPersonasPage pattern**: modal 90vw, grid `grid-cols-2` para persona+materia (desplegables con búsqueda inline + click-outside), grid `grid-cols-3` para cargo+dedicación+carácter (selects), fechas condicionales según `caracter.requiere_fecha`. Switch "Cargo activo" antes de los botones. Tabla con columnas: Persona, Materia, Cargo, Dedicación, Carácter, Vigencia (fechas dd.mm.aaaa), Carrera/Plan, Facultad, Activo (badge), Acciones.
+22. **Nomenclador endpoint plano `/api/entradas/`**: GET retorna solo nodos hoja (Disciplinas sin hijos, Subdisciplinas sin hijos, todas las Especialidades). POST crea jerarquía automáticamente (Disciplina → Subdisciplina → Especialidad) si no existen, usando el mismo nombre como descripción.
+23. **GestionNomencladorPage**: tabla plana sin columna Tipo. Códigos con padStart(2,"0") en onBlur. Nombre en uppercase via onChange. Los endpoints individuales (`/disciplinas/`, `/subdisciplinas/`, `/especialidades/`) se mantienen para compatibilidad.
+24. **Materias ordering**: `MateriaViewSet` ordena por `["codigo", "plan_estudio__carrera__codigo", "nombre"]`.
+25. **Materias paginación**: MateriasPage usa paginación desde backend (PAGE_SIZE=50). Estado `page` resetea a 1 al cambiar búsqueda.
+26. **CSS minify**: `build.cssMinify: false` en `vite.config.ts` para evitar warnings de Tailwind v4 `:is()` vacío.
+27. **Backup dumpdata**: `backups/sacad_data.json` generado con `dumpdata --natural-foreign --natural-primary`. Excluye contenttypes, auth.Permission, admin.LogEntry, sessions. Copiado a `/tmp/sacad_data.json` en el container para restore vía `loaddata`.
