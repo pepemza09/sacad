@@ -167,9 +167,13 @@ export default function MateriasPage() {
   const canWrite = user?.is_superuser || canWriteMenu("materias");
 
   const [search, setSearch] = useState("");
-  const qs = search ? `search=${encodeURIComponent(search)}` : "";
-  const { data, loading, refetch } = useApiData<{ results: Materia[] }>(
-    `/materias/${qs ? `?${qs}` : ""}`,
+  const [page, setPage] = useState(1);
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  params.set("page", String(page));
+  const qs = params.toString();
+  const { data, loading, refetch } = useApiData<{ count: number; results: Materia[]; next: string | null; previous: string | null }>(
+    `/materias/?${qs}`,
     [qs]
   );
   const { data: planesData } = useApiData<{ results: PlanOption[] }>(
@@ -373,7 +377,7 @@ export default function MateriasPage() {
               <Input
                 placeholder="Buscar..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
               {canWrite && <Button size="sm" startIcon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="white"/><path d="M12 8v8M8 12h8" stroke="#465fff" strokeWidth={2} strokeLinecap="round"/></svg>} className="font-semibold" onClick={openCreate}>Agregar Materia</Button>}
             </div>
@@ -443,6 +447,31 @@ export default function MateriasPage() {
               )}
             </tbody>
           </table>
+          {data && data.count > 50 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {data.count} materia{data.count !== 1 ? "s" : ""} — Página {page} de {Math.ceil(data.count / 50)}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!data.next}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

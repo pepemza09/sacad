@@ -81,6 +81,12 @@ class SedeViewSet(viewsets.ModelViewSet):
                 {"detail": f"Sede no eliminable: tiene {n} carrera{'s' if n != 1 else ''} asociada{'s' if n != 1 else ''}. Eliminá las carreras primero."},
                 status=status.HTTP_409_CONFLICT,
             )
+        n_cargos = instance.cargos_docentes.count()
+        if n_cargos:
+            return Response(
+                {"detail": f"Sede no eliminable: tiene {n_cargos} cargo{'s' if n_cargos != 1 else ''} docente asignado{'s' if n_cargos != 1 else ''}. Eliminá los cargos primero."},
+                status=status.HTTP_409_CONFLICT,
+            )
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -186,6 +192,7 @@ class MateriaViewSet(viewsets.ModelViewSet):
     filterset_class = MateriaFilter
     search_fields = ["nombre", "codigo", "periodo", "tipo__nombre", "contenidos_minimos"]
     permission_classes = [IsAuthenticated]
+    ordering = ["codigo", "plan_estudio__carrera__codigo", "nombre"]
 
     def get_serializer_class(self):
         if self.action == "retrieve":

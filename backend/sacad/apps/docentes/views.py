@@ -111,3 +111,14 @@ class DocenteViewSet(viewsets.ModelViewSet):
                     request,
                     message="No tenés permiso para modificar docentes.",
                 )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        n = instance.cargos.count()
+        if n:
+            return Response(
+                {"detail": f"Docente no eliminable: tiene {n} cargo{'s' if n != 1 else ''} docente asignado{'s' if n != 1 else ''}. Eliminá los cargos primero."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
