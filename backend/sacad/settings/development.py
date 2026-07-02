@@ -10,4 +10,5 @@ INTERNAL_IPS = ["127.0.0.1", "0.0.0.0", "localhost"]
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-DATABASES["default"]["OPTIONS"] = {"options": "-c search_path=public"}
+current_opts = DATABASES["default"]["OPTIONS"].get("options", "")
+DATABASES["default"]["OPTIONS"]["options"] = f"{current_opts} -c search_path=public".strip()
