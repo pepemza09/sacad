@@ -16,6 +16,7 @@ interface EntradaNomenclador {
   disciplina_codigo: string;
   subdisciplina_codigo: string;
   especialidad_codigo: string;
+  codigo_display: string;
   nombre: string;
   activo: boolean;
 }
@@ -38,12 +39,6 @@ const FORM_INIT: FormState = {
   activo: true,
 };
 
-function codigoTooltip(tipo: string, d: string, s: string, e: string): string {
-  if (tipo === "especialidad") return `${d}.${s}.${e}`;
-  if (tipo === "subdisciplina") return `${d}.${s}`;
-  return d;
-}
-
 function NomencladorTable({ canWrite }: { canWrite: boolean }) {
   const { data, loading, refetch } = useApiData<EntradaNomenclador[]>("/entradas/");
   const entries = data ?? [];
@@ -62,10 +57,7 @@ function NomencladorTable({ canWrite }: { canWrite: boolean }) {
       r = r.filter(
         (e) =>
           e.nombre.toLowerCase().includes(q) ||
-          e.disciplina_codigo.toLowerCase().includes(q) ||
-          e.subdisciplina_codigo.toLowerCase().includes(q) ||
-          e.especialidad_codigo.toLowerCase().includes(q) ||
-          codigoTooltip(e.tipo, e.disciplina_codigo, e.subdisciplina_codigo, e.especialidad_codigo).includes(q)
+          e.codigo_display.toLowerCase().includes(q)
       );
     }
     return r;
@@ -277,13 +269,12 @@ function NomencladorTable({ canWrite }: { canWrite: boolean }) {
               <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">No hay registros.</td></tr>
             ) : (
               filtradas.map((item) => {
-                const codigo = codigoTooltip(item.tipo, item.disciplina_codigo, item.subdisciplina_codigo, item.especialidad_codigo);
                 const indent = item.tipo === "subdisciplina" ? "ml-4" : item.tipo === "especialidad" ? "ml-8" : "";
                 const bold = item.tipo === "disciplina" ? "font-semibold" : "";
                 return (
                   <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700">
                     <td className={`px-4 py-3 font-mono text-gray-800 dark:text-white/90 ${indent} ${bold}`}>
-                      {codigo}
+                      {item.codigo_display}
                     </td>
                     <td className={`px-4 py-3 text-gray-800 dark:text-white/90 ${bold}`}>
                       {item.nombre}

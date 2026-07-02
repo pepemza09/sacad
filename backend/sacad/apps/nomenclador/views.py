@@ -112,35 +112,49 @@ class EspecialidadViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _p2(s: str) -> str:
+    """Zero-pad a code to 2 digits."""
+    return s.strip().zfill(2)
+
+
 def _serializar_entrada(d: Disciplina | None = None, s: Subdisciplina | None = None, e: Especialidad | None = None) -> dict:
     """Serializa una entrada del nomenclador en formato plano."""
     if e:
+        dc = _p2(e.subdisciplina.disciplina.codigo)
+        sc = _p2(e.subdisciplina.codigo)
+        ec = _p2(e.codigo)
         return {
             "id": f"e_{e.id}",
             "tipo": "especialidad",
-            "disciplina_codigo": e.subdisciplina.disciplina.codigo,
-            "subdisciplina_codigo": e.subdisciplina.codigo,
-            "especialidad_codigo": e.codigo,
+            "disciplina_codigo": dc,
+            "subdisciplina_codigo": sc,
+            "especialidad_codigo": ec,
+            "codigo_display": f"{dc}.{sc}.{ec}",
             "nombre": e.descripcion,
             "activo": e.activo and e.subdisciplina.activo and e.subdisciplina.disciplina.activo,
         }
     if s:
+        dc = _p2(s.disciplina.codigo)
+        sc = _p2(s.codigo)
         return {
             "id": f"s_{s.id}",
             "tipo": "subdisciplina",
-            "disciplina_codigo": s.disciplina.codigo,
-            "subdisciplina_codigo": s.codigo,
+            "disciplina_codigo": dc,
+            "subdisciplina_codigo": sc,
             "especialidad_codigo": "",
+            "codigo_display": f"{dc}.{sc}.00",
             "nombre": s.descripcion,
             "activo": s.activo and s.disciplina.activo,
         }
     if d:
+        dc = _p2(d.codigo)
         return {
             "id": f"d_{d.id}",
             "tipo": "disciplina",
-            "disciplina_codigo": d.codigo,
+            "disciplina_codigo": dc,
             "subdisciplina_codigo": "",
             "especialidad_codigo": "",
+            "codigo_display": f"{dc}.00.00",
             "nombre": d.descripcion,
             "activo": d.activo,
         }
