@@ -57,6 +57,7 @@ class CargoDocenteSerializer(serializers.ModelSerializer):
                 "codigo": m.codigo,
                 "nombre": m.nombre,
                 "carrera_nombre": m.plan_estudio.carrera.nombre,
+                "plan_estudio": m.plan_estudio.id,
                 "plan_estudio_codigo": m.plan_estudio.codigo,
                 "area_nombre": m.area.nombre if m.area else None,
                 "facultad_nombre": m.plan_estudio.carrera.facultad.nombre,

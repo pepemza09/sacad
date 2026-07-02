@@ -18,6 +18,7 @@ interface MateriaDisplay {
   codigo: string;
   nombre: string;
   carrera_nombre: string;
+  plan_estudio: number;
   plan_estudio_codigo: string;
   area_nombre: string | null;
   facultad_nombre: string;
@@ -82,7 +83,7 @@ export default function CargosPersonasPage() {
 
   const { data, loading, refetch } = useApiData<{ results: CargoDocente[] }>("/cargos-docentes/", []);
   const { data: docentesData } = useApiData<{ results: Record<string, unknown>[] }>("/docentes/", []);
-  const { data: materiasData } = useApiData<{ results: Record<string, unknown>[] }>("/materias/", []);
+  const { data: planesData } = useApiData<{ results: Record<string, unknown>[] }>("/planes/", []);
   const { data: cargosData } = useApiData<{ results: Record<string, unknown>[] }>("/cargos/", []);
   const { data: dedicacionesData } = useApiData<{ results: Record<string, unknown>[] }>("/dedicaciones/", []);
   const { data: caracteresData } = useApiData<{ results: Record<string, unknown>[] }>("/caracteres/", []);
@@ -90,11 +91,24 @@ export default function CargosPersonasPage() {
 
   const items = data?.results ?? [];
   const docentes = docentesData?.results ?? [];
-  const materias = materiasData?.results ?? [];
+  const planes = planesData?.results ?? [];
   const cargos = cargosData?.results ?? [];
   const dedicaciones = dedicacionesData?.results ?? [];
   const caracteres = caracteresData?.results ?? [];
   const sedes = sedesData?.results ?? [];
+
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  const [planMaterias, setPlanMaterias] = useState<Record<string, unknown>[]>([]);
+
+  useEffect(() => {
+    if (selectedPlanId) {
+      apiClient.get(`/materias/?page_size=1000&plan_estudio=${selectedPlanId}`)
+        .then(res => setPlanMaterias(res.data?.results ?? []))
+        .catch(() => setPlanMaterias([]));
+    } else {
+      setPlanMaterias([]);
+    }
+  }, [selectedPlanId]);
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CargoDocenteForm>(emptyForm);
@@ -139,13 +153,13 @@ export default function CargosPersonasPage() {
     : docentes;
 
   const materiasFiltered = materiaSearch
-    ? materias.filter((m: Record<string, unknown>) => {
+    ? planMaterias.filter((m: Record<string, unknown>) => {
         const cod = (m.codigo as string || "").toLowerCase();
         const nom = (m.nombre as string || "").toLowerCase();
         const q = materiaSearch.toLowerCase();
         return cod.includes(q) || nom.includes(q);
       })
-    : materias;
+    : planMaterias;
 
   useEffect(() => {
     if (form.caracter) {
@@ -165,12 +179,13 @@ export default function CargosPersonasPage() {
   const showFin = requiereFecha === "fin" || requiereFecha === "ambas";
 
   const selectedMateriasDisplay = form.materias
-    .map((id) => materias.find((m: Record<string, unknown>) => m.id === id))
+    .map((id) => planMaterias.find((m: Record<string, unknown>) => m.id === id))
     .filter((m): m is Record<string, unknown> => !!m);
 
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setSelectedPlanId(null);
     setSelectedCaracter(null);
     setErrors({});
     setFormError("");
@@ -183,6 +198,8 @@ export default function CargosPersonasPage() {
 
   const openEdit = (item: CargoDocente) => {
     setEditingId(item.id);
+    const planId = item.materias_display[0]?.plan_estudio ?? null;
+    setSelectedPlanId(planId);
     setForm({
       docente: item.docente,
       materias: item.materias,
@@ -207,6 +224,7 @@ export default function CargosPersonasPage() {
     setOpen(false);
     setEditingId(null);
     setForm(emptyForm);
+    setSelectedPlanId(null);
     setSelectedCaracter(null);
     setErrors({});
     setFormError("");
@@ -300,9 +318,9 @@ export default function CargosPersonasPage() {
                   Nuevo Cargo
                 </Button>
               )}
-            </div>
-          </div>
-        </div>
+                  </div>
+                </div>
+              </div>
 
         <div className="p-6 overflow-x-auto">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
@@ -443,23 +461,44 @@ export default function CargosPersonasPage() {
                   {errors.docente && <p className="mt-1 text-xs text-error-500">{errors.docente}</p>}
                 </div>
 
-                <div className="relative" ref={materiaRef}>
-                  <Label>Materias</Label>
-                  <input
-                    type="text"
-                    placeholder="Buscá y seleccioná materias..."
-                    value={materiaSearch}
+                <div>
+                  <Label>Plan de estudio</Label>
+                  <select
+                    value={selectedPlanId ?? ""}
                     onChange={(e) => {
-                      setMateriaSearch(e.target.value);
-                      setMateriaDropdownOpen(true);
+                      const id = e.target.value ? Number(e.target.value) : null;
+                      setSelectedPlanId(id);
+                      setForm({ ...form, materias: [] });
+                      setMateriaSearch("");
                     }}
-                    onFocus={() => setMateriaDropdownOpen(true)}
-                    className={`h-11 w-full rounded-lg border bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 placeholder-gray-400 ${
-                      errors.materias
-                        ? "border-error-500"
-                        : "border-gray-300 dark:border-gray-700"
-                    }`}
-                  />
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                  >
+                    <option value="">Seleccioná un plan...</option>
+                    {planes.map((p: Record<string, unknown>) => (
+                      <option key={p.id as number} value={p.id as number}>
+                        {(p.carrera_nombre as string) ?? ""} - {p.codigo as string}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="relative mt-3" ref={materiaRef}>
+                    <Label>Materias</Label>
+                    <input
+                      type="text"
+                      placeholder={selectedPlanId ? "Buscá y seleccioná materias..." : "Primero seleccioná un plan"}
+                      value={materiaSearch}
+                      onChange={(e) => {
+                        setMateriaSearch(e.target.value);
+                        setMateriaDropdownOpen(true);
+                      }}
+                      onFocus={() => setMateriaDropdownOpen(true)}
+                      disabled={!selectedPlanId}
+                      className={`h-11 w-full rounded-lg border bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        errors.materias
+                          ? "border-error-500"
+                          : "border-gray-300 dark:border-gray-700"
+                      }`}
+                    />
                   {materiaDropdownOpen && (
                     <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                       {materiasFiltered.length === 0 ? (
@@ -514,9 +553,9 @@ export default function CargosPersonasPage() {
                       ))}
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Cargo</Label>
@@ -624,10 +663,10 @@ export default function CargosPersonasPage() {
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">¿Estás seguro de que querés eliminar este cargo?</p>
             {deleteError && (
               <div className="mb-4 rounded-lg bg-error-50 border border-error-200 px-4 py-3 text-sm text-error-700 dark:bg-error-500/10 dark:border-error-500/20 dark:text-error-400">
-                {deleteError}
+                  {deleteError}
               </div>
-            )}
-          </div>
+                  )}
+            </div>
           <div className="flex items-center justify-end gap-3 px-2">
             <Button size="sm" variant="outline" onClick={() => setDeletingId(null)}>Cancelar</Button>
             <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>Eliminar</Button>
