@@ -483,22 +483,42 @@ export default function CargosPersonasPage() {
 
                   <div className="relative mt-3" ref={materiaRef}>
                     <Label>Materias</Label>
-                    <input
-                      type="text"
-                      placeholder={selectedPlanId ? "Buscá y seleccioná materias..." : "Primero seleccioná un plan"}
-                      value={materiaSearch}
-                      onChange={(e) => {
-                        setMateriaSearch(e.target.value);
-                        setMateriaDropdownOpen(true);
-                      }}
-                      onFocus={() => setMateriaDropdownOpen(true)}
-                      disabled={!selectedPlanId}
-                      className={`h-11 w-full rounded-lg border bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        errors.materias
-                          ? "border-error-500"
-                          : "border-gray-300 dark:border-gray-700"
-                      }`}
-                    />
+                    <div className={`flex flex-wrap items-center gap-1.5 min-h-11 w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm focus-within:border-brand-300 focus-within:ring-3 focus-within:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 ${
+                      errors.materias
+                        ? "border-error-500"
+                        : "border-gray-300 dark:border-gray-700"
+                    } ${!selectedPlanId ? "opacity-50 cursor-not-allowed" : ""}`}>
+                      {selectedMateriasDisplay.map((m) => (
+                        <span
+                          key={m.id as number}
+                          className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                        >
+                          {m.codigo as string}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setForm({ ...form, materias: form.materias.filter((id) => id !== (m.id as number)) });
+                            }}
+                            className="text-brand-500 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                          >
+                            &times;
+                          </button>
+                        </span>
+                      ))}
+                      <input
+                        type="text"
+                        placeholder={selectedPlanId ? "Buscá materias..." : "Primero seleccioná un plan"}
+                        value={materiaSearch}
+                        onChange={(e) => {
+                          setMateriaSearch(e.target.value);
+                          setMateriaDropdownOpen(true);
+                        }}
+                        onFocus={() => setMateriaDropdownOpen(true)}
+                        disabled={!selectedPlanId}
+                        className="flex-1 min-w-[100px] border-0 bg-transparent px-0 py-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed dark:text-white/90"
+                      />
+                    </div>
                   {materiaDropdownOpen && (
                     <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                       {materiasFiltered.length === 0 ? (
@@ -534,25 +554,6 @@ export default function CargosPersonasPage() {
                   )}
                   {errors.materias && <p className="mt-1 text-xs text-error-500">{errors.materias}</p>}
 
-                  {selectedMateriasDisplay.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {selectedMateriasDisplay.map((m) => (
-                        <span
-                          key={m.id as number}
-                          className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
-                        >
-                          {(m.codigo as string)} - {(m.nombre as string)}
-                          <button
-                            type="button"
-                            onClick={() => setForm({ ...form, materias: form.materias.filter((id) => id !== (m.id as number)) })}
-                            className="ml-0.5 text-brand-500 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
-                          >
-                            &times;
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
                   </div>
                 </div>
               </div>
