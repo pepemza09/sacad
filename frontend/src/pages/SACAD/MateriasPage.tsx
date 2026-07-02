@@ -384,6 +384,31 @@ export default function MateriasPage() {
           </div>
         </div>
         <div className="p-6 overflow-x-auto">
+          {data && data.count > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {data.count} materia{data.count !== 1 ? "s" : ""} — Página {page} de {Math.ceil(data.count / 10)}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!data.next}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
               <tr>
@@ -447,31 +472,6 @@ export default function MateriasPage() {
               )}
             </tbody>
           </table>
-          {data && data.count > 50 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {data.count} materia{data.count !== 1 ? "s" : ""} — Página {page} de {Math.ceil(data.count / 50)}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!data.next}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

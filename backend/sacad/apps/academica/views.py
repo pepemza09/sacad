@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
@@ -185,7 +186,14 @@ class PlanEstudioViewSet(viewsets.ModelViewSet):
         return Response(result)
 
 
+class MateriaPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 1000
+
+
 class MateriaViewSet(viewsets.ModelViewSet):
+    pagination_class = MateriaPagination
     queryset = Materia.objects.select_related(
         "plan_estudio__carrera", "disciplina", "subdisciplina", "especialidad"
     ).all()

@@ -186,7 +186,7 @@ export default function EquivalenciasPage() {
   >("/planes/");
   const { data: materiasData } = useApiData<
     { results: MateriaOption[] }
-  >("/materias/?limit=500");
+  >("/materias/?page_size=1000");
 
   const materias = materiasData?.results || [];
   const { user } = useAuth();
