@@ -7,7 +7,6 @@ import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import { PencilIcon, TrashBinIcon } from "../../icons";
-import { equivalenciasApi } from "../../api/services";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
@@ -40,7 +39,6 @@ interface Equivalencia {
   materias_origen_display: MateriaDisplay[];
   materias_destino_display: MateriaDisplay[];
   tipo: string;
-  porcentaje: number | null;
   resolucion: string;
   observaciones: string;
   activa: boolean;
@@ -52,7 +50,6 @@ interface EquivalenciaForm {
   materias_origen: MateriaOption[];
   materias_destino: MateriaOption[];
   tipo: string;
-  porcentaje: string;
   resolucion: string;
   observaciones: string;
   activa: boolean;
@@ -68,7 +65,6 @@ const emptyForm: EquivalenciaForm = {
   materias_origen: [],
   materias_destino: [],
   tipo: "total",
-  porcentaje: "",
   resolucion: "",
   observaciones: "",
   activa: true,
@@ -205,23 +201,6 @@ export default function EquivalenciasPage() {
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
-  // ── Consulta panel ──────────────────────────────────────────────
-  const [consultaOpen, setConsultaOpen] = useState(false);
-  const [consultaOrigen, setConsultaOrigen] = useState<MateriaOption[]>([]);
-  const [consultaDestino, setConsultaDestino] = useState("");
-  const [consultaResult, setConsultaResult] = useState<
-    | {
-        materia_destino_id: number;
-        materia_destino_codigo: string;
-        materia_destino_nombre: string;
-        tipo: string;
-        porcentaje: number | null;
-        cascada?: boolean;
-      }[]
-    | null
-  >(null);
-  const [consulting, setConsulting] = useState(false);
-
   const planes = planesData?.results || [];
   const origenMaterias = materias.filter(
     (m) => m.plan_estudio === Number(form.plan_origen)
@@ -263,7 +242,6 @@ export default function EquivalenciasPage() {
         carrera_nombre: "",
       })),
       tipo: eq.tipo,
-      porcentaje: eq.porcentaje?.toString() ?? "",
       resolucion: eq.resolucion ?? "",
       observaciones: eq.observaciones ?? "",
       activa: eq.activa,
@@ -276,21 +254,6 @@ export default function EquivalenciasPage() {
     setDeleteError("");
   };
 
-  const handleConsultar = async () => {
-    if (consultaOrigen.length === 0 || !consultaDestino) return;
-    setConsulting(true);
-    try {
-      const res = await equivalenciasApi.consultar(
-        consultaOrigen.map((m) => m.id),
-        Number(consultaDestino)
-      );
-      setConsultaResult(res.data);
-    } catch {
-      setConsultaResult([]);
-    }
-    setConsulting(false);
-  };
-
   const validate = (): boolean => {
     const newErrors: FieldErrors = {};
     if (!form.plan_destino) newErrors.plan_destino = "Seleccioná un plan destino.";
@@ -298,8 +261,6 @@ export default function EquivalenciasPage() {
       newErrors.materias_origen = "Seleccioná al menos una materia origen.";
     if (form.materias_destino.length === 0)
       newErrors.materias_destino = "Seleccioná al menos una materia destino.";
-    if (form.tipo === "parcial" && !form.porcentaje)
-      newErrors.porcentaje = "Ingresá el porcentaje.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -318,9 +279,6 @@ export default function EquivalenciasPage() {
         observaciones: form.observaciones,
         activa: form.activa,
       };
-      if (form.tipo === "parcial" && form.porcentaje) {
-        payload.porcentaje = Number(form.porcentaje);
-      }
       if (editingId) {
         await apiClient.put(`/equivalencias/${editingId}/`, payload);
       } else {
@@ -375,100 +333,6 @@ export default function EquivalenciasPage() {
       <PageBreadcrumb items={[{ label: "Equivalencias" }]} />
 
       <div className="space-y-6 mb-6">
-        {/* ── Consultar Equivalencias ── */}
-        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-          <button
-            onClick={() => setConsultaOpen(!consultaOpen)}
-            className="w-full px-6 py-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between"
-          >
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              Consultar Equivalencias
-            </h3>
-            <svg
-              className={`w-5 h-5 text-gray-400 transition-transform ${consultaOpen ? "rotate-180" : ""}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-          {consultaOpen && (
-          <div className="p-6 space-y-4">
-            <div>
-              <Label>Materias Cursadas (origen)</Label>
-              <MateriaMultiSelect
-                label=""
-                selected={consultaOrigen}
-                onChange={setConsultaOrigen}
-                placeholder="Buscar materias cursadas..."
-                materias={materias}
-              />
-            </div>
-            <div>
-              <Label htmlFor="consulta_plan">Plan Destino</Label>
-              <select
-                id="consulta_plan"
-                value={consultaDestino}
-                onChange={(e) => setConsultaDestino(e.target.value)}
-                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-              >
-                <option value="">Seleccionar plan...</option>
-                {planes.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.carrera_nombre} - {p.codigo}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Button onClick={handleConsultar} disabled={consulting}>
-              {consulting ? "Consultando..." : "Consultar"}
-            </Button>
-
-            {consultaResult && (
-              <div className="mt-4">
-                <h4 className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                  Resultado
-                </h4>
-                {consultaResult.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    Sin equivalencias encontradas
-                  </p>
-                ) : (
-                  <ul className="space-y-2">
-                    {consultaResult.map((r, i) => (
-                      <li
-                        key={i}
-                        className="p-3 text-sm border rounded-lg border-gray-200 dark:border-gray-700"
-                      >
-                        <span className="font-medium">
-                          {r.materia_destino_codigo}
-                        </span>{" "}
-                        - {r.materia_destino_nombre}
-                        <span className="ml-2 inline-flex px-2 py-0.5 text-xs rounded-full bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500">
-                          {r.tipo}
-                        </span>
-                        {r.porcentaje && (
-                          <span className="ml-1 text-xs text-gray-400">
-                            {r.porcentaje}%
-                          </span>
-                        )}
-                        {r.cascada && (
-                          <span className="ml-1 text-xs text-amber-500">
-                            (cascada)
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-          )}
-        </div>
-
         {/* ── Equivalencias Registradas ── */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
@@ -544,9 +408,6 @@ export default function EquivalenciasPage() {
                       >
                         {eq.tipo === "total" ? "Total" : "Parcial"}
                       </span>
-                      {eq.porcentaje && (
-                        <span className="text-xs text-gray-400">{eq.porcentaje}%</span>
-                      )}
                       <span className={`inline-flex px-2 py-0.5 text-xs rounded-full ${
                         eq.activa
                           ? "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500"
@@ -710,27 +571,6 @@ export default function EquivalenciasPage() {
                     <option value="parcial">Parcial</option>
                   </select>
                 </div>
-                {form.tipo === "parcial" && (
-                  <div>
-                    <Label htmlFor="porcentaje">Porcentaje</Label>
-                    <Input
-                      id="porcentaje"
-                      type="number"
-                      min="1"
-                      max="99"
-                      value={form.porcentaje}
-                      onChange={(e) =>
-                        setForm({ ...form, porcentaje: e.target.value })
-                      }
-                      error={!!errors.porcentaje}
-                    />
-                    {errors.porcentaje && (
-                      <p className="mt-1 text-xs text-error-500">
-                        {errors.porcentaje}
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
               <div>
