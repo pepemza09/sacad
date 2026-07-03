@@ -83,7 +83,6 @@ export default function CargosPersonasPage() {
 
   const { data, loading, refetch } = useApiData<{ results: CargoDocente[] }>("/cargos-docentes/", []);
   const { data: docentesData } = useApiData<{ results: Record<string, unknown>[] }>("/docentes/", []);
-  const { data: planesData } = useApiData<{ results: Record<string, unknown>[] }>("/planes/", []);
   const { data: cargosData } = useApiData<{ results: Record<string, unknown>[] }>("/cargos/", []);
   const { data: dedicacionesData } = useApiData<{ results: Record<string, unknown>[] }>("/dedicaciones/", []);
   const { data: caracteresData } = useApiData<{ results: Record<string, unknown>[] }>("/caracteres/", []);
@@ -91,24 +90,18 @@ export default function CargosPersonasPage() {
 
   const items = data?.results ?? [];
   const docentes = docentesData?.results ?? [];
-  const planes = planesData?.results ?? [];
   const cargos = cargosData?.results ?? [];
   const dedicaciones = dedicacionesData?.results ?? [];
   const caracteres = caracteresData?.results ?? [];
   const sedes = sedesData?.results ?? [];
 
-  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
-  const [planMaterias, setPlanMaterias] = useState<Record<string, unknown>[]>([]);
+  const [allMaterias, setAllMaterias] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
-    if (selectedPlanId) {
-      apiClient.get(`/materias/?page_size=1000&plan_estudio=${selectedPlanId}`)
-        .then(res => setPlanMaterias(res.data?.results ?? []))
-        .catch(() => setPlanMaterias([]));
-    } else {
-      setPlanMaterias([]);
-    }
-  }, [selectedPlanId]);
+    apiClient.get("/materias/?page_size=1000")
+      .then(res => setAllMaterias(res.data?.results ?? []))
+      .catch(() => setAllMaterias([]));
+  }, []);
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CargoDocenteForm>(emptyForm);
@@ -153,13 +146,13 @@ export default function CargosPersonasPage() {
     : docentes;
 
   const materiasFiltered = materiaSearch
-    ? planMaterias.filter((m: Record<string, unknown>) => {
+    ? allMaterias.filter((m: Record<string, unknown>) => {
         const cod = (m.codigo as string || "").toLowerCase();
         const nom = (m.nombre as string || "").toLowerCase();
         const q = materiaSearch.toLowerCase();
         return cod.includes(q) || nom.includes(q);
       })
-    : planMaterias;
+    : allMaterias;
 
   useEffect(() => {
     if (form.caracter) {
@@ -179,13 +172,12 @@ export default function CargosPersonasPage() {
   const showFin = requiereFecha === "fin" || requiereFecha === "ambas";
 
   const selectedMateriasDisplay = form.materias
-    .map((id) => planMaterias.find((m: Record<string, unknown>) => m.id === id))
+    .map((id) => allMaterias.find((m: Record<string, unknown>) => m.id === id))
     .filter((m): m is Record<string, unknown> => !!m);
 
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
-    setSelectedPlanId(null);
     setSelectedCaracter(null);
     setErrors({});
     setFormError("");
@@ -198,8 +190,6 @@ export default function CargosPersonasPage() {
 
   const openEdit = (item: CargoDocente) => {
     setEditingId(item.id);
-    const planId = item.materias_display[0]?.plan_estudio ?? null;
-    setSelectedPlanId(planId);
     setForm({
       docente: item.docente,
       materias: item.materias,
@@ -224,7 +214,6 @@ export default function CargosPersonasPage() {
     setOpen(false);
     setEditingId(null);
     setForm(emptyForm);
-    setSelectedPlanId(null);
     setSelectedCaracter(null);
     setErrors({});
     setFormError("");
@@ -462,38 +451,20 @@ export default function CargosPersonasPage() {
                 </div>
 
                 <div>
-                  <Label>Plan de estudio</Label>
-                  <select
-                    value={selectedPlanId ?? ""}
-                    onChange={(e) => {
-                      const id = e.target.value ? Number(e.target.value) : null;
-                      setSelectedPlanId(id);
-                      setForm({ ...form, materias: [] });
-                      setMateriaSearch("");
-                    }}
-                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
-                  >
-                    <option value="">Seleccioná un plan...</option>
-                    {planes.map((p: Record<string, unknown>) => (
-                      <option key={p.id as number} value={p.id as number}>
-                        {(p.carrera_nombre as string) ?? ""} - {p.codigo as string}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="relative mt-3" ref={materiaRef}>
+                  <div className="relative" ref={materiaRef}>
                     <Label>Materias</Label>
                     <div className={`flex flex-wrap items-center gap-1.5 min-h-11 w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm focus-within:border-brand-300 focus-within:ring-3 focus-within:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 ${
                       errors.materias
                         ? "border-error-500"
                         : "border-gray-300 dark:border-gray-700"
-                    } ${!selectedPlanId ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    }`}>
                       {selectedMateriasDisplay.map((m) => (
                         <span
                           key={m.id as number}
                           className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
                         >
                           {m.codigo as string}
+                          <span className="text-brand-400"> ({(m.plan_estudio_codigo as string)})</span>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -508,15 +479,14 @@ export default function CargosPersonasPage() {
                       ))}
                       <input
                         type="text"
-                        placeholder={selectedPlanId ? "Buscá materias..." : "Primero seleccioná un plan"}
+                        placeholder="Buscá materias por código o nombre..."
                         value={materiaSearch}
                         onChange={(e) => {
                           setMateriaSearch(e.target.value);
                           setMateriaDropdownOpen(true);
                         }}
                         onFocus={() => setMateriaDropdownOpen(true)}
-                        disabled={!selectedPlanId}
-                        className="flex-1 min-w-[100px] border-0 bg-transparent px-0 py-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed dark:text-white/90"
+                        className="flex-1 min-w-[100px] border-0 bg-transparent px-0 py-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none dark:text-white/90"
                       />
                     </div>
                   {materiaDropdownOpen && (
@@ -545,7 +515,7 @@ export default function CargosPersonasPage() {
                               }}
                             >
                               {(m.codigo as string)} - {(m.nombre as string)}
-                              {m.carrera_nombre ? ` (${m.carrera_nombre as string})` : ""}
+                              {m.carrera_nombre ? ` (${m.carrera_nombre as string}/${m.plan_estudio_codigo as string})` : ""}
                             </button>
                           );
                         })
