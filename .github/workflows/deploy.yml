@@ -26,11 +26,11 @@ jobs:
             set -e
             cd ${{ secrets.ORACLE_PROJECT_DIR }}
 
-            echo "=== Backup DB ==="
-            COMPOSE_FILE=docker-compose.prod.yml ./scripts/backup.sh
-
             echo "=== Pull latest code ==="
             git fetch origin main && git reset --hard origin/main || (git fetch --unshallow && git fetch origin main && git reset --hard origin/main)
+
+            echo "=== Backup DB ==="
+            COMPOSE_FILE=docker-compose.prod.yml ./scripts/backup.sh
 
             echo "=== Force stop old containers ==="
             docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
