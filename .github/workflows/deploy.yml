@@ -26,11 +26,32 @@ jobs:
             set -e
             cd ${{ secrets.ORACLE_PROJECT_DIR }}
 
+            echo "=== Ensure git repo ==="
+            if [ ! -d .git ]; then
+              echo "No git repo detected - bootstrapping from GitHub..."
+              git clone https://github.com/pepemza09/sacad.git /tmp/sacad-latest
+              cp -a /tmp/sacad-latest/. .
+              rm -rf /tmp/sacad-latest
+            fi
+
             echo "=== Pull latest code ==="
             git fetch origin main && git reset --hard origin/main || (git fetch --unshallow && git fetch origin main && git reset --hard origin/main)
 
+            echo "=== Check .env ==="
+            if [ ! -f .env ]; then
+              echo "ERROR: falta el archivo .env en ${{ secrets.ORACLE_PROJECT_DIR }}"
+              echo "Crealo manualmente con:"
+              echo "  scp .env ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }}:${{ secrets.ORACLE_PROJECT_DIR }}/.env"
+              echo "Usa .env.example como plantilla (ajusta los valores de produccion)."
+              exit 1
+            fi
+
             echo "=== Backup DB ==="
-            COMPOSE_FILE=docker-compose.prod.yml ./scripts/backup.sh
+            if docker compose -f docker-compose.prod.yml ps -q db 2>/dev/null | grep -q .; then
+              COMPOSE_FILE=docker-compose.prod.yml ./scripts/backup.sh
+            else
+              echo "No hay base de datos corriendo - se omite el backup (deploy inicial)."
+            fi
 
             echo "=== Force stop old containers ==="
             docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
