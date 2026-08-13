@@ -12,6 +12,8 @@ import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
+import DataState from "../../components/common/DataState";
 
 interface FacultadOption {
   id: number;
@@ -59,6 +61,7 @@ export default function SedesPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("sedes");
+  const { showToast } = useToast();
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("todas");
   const [facultadFilter, setFacultadFilter] = useState("");
@@ -67,7 +70,7 @@ export default function SedesPage() {
   if (statusFilter !== "todas") params.set("activa", statusFilter);
   if (facultadFilter) params.set("facultad", facultadFilter);
   const qs = params.toString();
-  const { data, loading, refetch } = useApiData<{ results: Sede[] }>(
+  const { data, loading, error, refetch } = useApiData<{ results: Sede[] }>(
     `/sedes/${qs ? `?${qs}` : ""}`,
     [qs]
   );
@@ -154,6 +157,7 @@ export default function SedesPage() {
       } else {
         await apiClient.post("/sedes/", form);
       }
+      showToast(editingId ? "Sede actualizada" : "Sede creada");
       modal.closeModal();
       refetch();
     } catch (err: unknown) {
@@ -188,6 +192,7 @@ export default function SedesPage() {
     if (!deletingId) return;
     try {
       await apiClient.delete(`/sedes/${deletingId}/`);
+      showToast("Sede eliminada");
       setDeletingId(null);
       refetch();
     } catch (err: unknown) {
@@ -273,10 +278,16 @@ export default function SedesPage() {
                     Cargando...
                   </td>
                 </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7}>
+                    <DataState error={error} />
+                  </td>
+                </tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                    No hay sedes registradas
+                  <td colSpan={7}>
+                    <DataState empty searching={!!filter} emptyMessage="No hay sedes registradas" />
                   </td>
                 </tr>
               ) : (
@@ -499,7 +510,7 @@ export default function SedesPage() {
               >
                 Cancelar
               </Button>
-              <Button size="sm" disabled={saving}>
+              <Button size="sm" type="submit" disabled={saving}>
                 {saving
                   ? "Guardando..."
                   : editingId
@@ -534,7 +545,7 @@ export default function SedesPage() {
             >
               Cancelar
             </Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>
+            <Button size="sm" variant="danger" onClick={handleDelete}>
               Eliminar
             </Button>
           </div>

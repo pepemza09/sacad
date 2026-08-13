@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .permissions import tiene_permiso_menu
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.http import HttpResponseRedirect
@@ -74,13 +75,20 @@ def google_login(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout(request):
+    refresh_token = request.data.get("refresh")
+    if not refresh_token:
+        return Response(
+            {"detail": "Falta el token de refresco."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     try:
-        refresh_token = request.data.get("refresh")
-        if refresh_token:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-    except Exception:
-        pass
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+    except TokenError as exc:
+        return Response(
+            {"detail": f"No se pudo cerrar la sesión: {str(exc)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     return Response({"message": "Sesión cerrada"}, status=status.HTTP_200_OK)
 
 
@@ -110,7 +118,7 @@ def google_complete(request):
     refresh = RefreshToken.for_user(request.user)
     url = (
         f"{settings.FRONTEND_URL}/auth/callback"
-        f"?access={str(refresh.access_token)}"
+        f"#access={str(refresh.access_token)}"
         f"&refresh={str(refresh)}"
     )
     return HttpResponseRedirect(url)
@@ -123,7 +131,12 @@ def users_list(request):
         return Response({"detail": "No tenés permiso para ver esta lista."}, status=status.HTTP_403_FORBIDDEN)
 
     status_filter = request.query_params.get("status")
-    users_qs = User.objects.all().order_by("-date_joined")
+    users_qs = (
+        User.objects.select_related("profile")
+        .prefetch_related("groups")
+        .all()
+        .order_by("-date_joined")
+    )
 
     if status_filter in [s.value for s in Profile.ApprovalStatus]:
         user_ids = Profile.objects.filter(approval_status=status_filter).values("user_id")
@@ -139,7 +152,7 @@ def users_list(request):
             "approval_status": getattr(u, "profile", None).approval_status if hasattr(u, "profile") and u.profile else None,
             "approved_at": getattr(u, "profile", None).approved_at if hasattr(u, "profile") and u.profile else None,
             "rejected_at": getattr(u, "profile", None).rejected_at if hasattr(u, "profile") and u.profile else None,
-            "groups": list(u.groups.values_list("name", flat=True)),
+            "groups": [g.name for g in u.groups.all()],
             "is_superuser": u.is_superuser,
         }
         for u in users_qs

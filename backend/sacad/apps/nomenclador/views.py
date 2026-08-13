@@ -164,7 +164,10 @@ def _serializar_entrada(d: Disciplina | None = None, s: Subdisciplina | None = N
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def entradas_nomenclador(request):
-    if request.method == "POST":
+    if request.method == "GET":
+        if not tiene_permiso_menu(request.user, MENU_KEY, require_write=False):
+            return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
+    else:
         if not tiene_permiso_menu(request.user, MENU_KEY, require_write=True):
             return Response({"detail": "No tenés permiso."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -236,14 +239,20 @@ def entradas_nomenclador(request):
         return Response(_serializar_entrada(s=s), status=status.HTTP_201_CREATED)
 
     # GET — listar todas las entradas planas ordenadas
+    from django.db.models import Count
+
     result = []
 
-    for d in Disciplina.objects.all():
-        if not d.subdisciplinas.exists():
+    for d in Disciplina.objects.annotate(n_sub=Count("subdisciplinas")).all():
+        if d.n_sub == 0:
             result.append(_serializar_entrada(d=d))
 
-    for s in Subdisciplina.objects.select_related("disciplina").all():
-        if not s.especialidades.exists():
+    for s in (
+        Subdisciplina.objects.select_related("disciplina")
+        .annotate(n_esp=Count("especialidades"))
+        .all()
+    ):
+        if s.n_esp == 0:
             result.append(_serializar_entrada(s=s))
 
     for e in Especialidad.objects.select_related("subdisciplina__disciplina").all():

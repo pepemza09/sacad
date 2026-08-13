@@ -9,6 +9,7 @@ import { TrashBinIcon, AngleLeftIcon, PencilIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
 
 interface TipoMateria {
   id: number;
@@ -20,6 +21,7 @@ export default function GestionTiposMateriaPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("configuracion.tipos-materia");
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const { data: tipos, loading, refetch } = useApiData<{ results: TipoMateria[] }>("/tipos-materia/");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -57,6 +59,7 @@ export default function GestionTiposMateriaPage() {
       } else {
         await apiClient.post("/tipos-materia/", payload);
       }
+      showToast(editingId ? "Tipo de materia actualizado" : "Tipo de materia creado");
       setEditingId(null);
       setShowCreate(false);
       setNombre("");
@@ -80,6 +83,7 @@ export default function GestionTiposMateriaPage() {
     if (!deleteId) return;
     try {
       await apiClient.delete(`/tipos-materia/${deleteId}/`);
+      showToast("Tipo de materia eliminado");
       setDeleteId(null);
       refetch();
     } catch {
@@ -215,7 +219,7 @@ export default function GestionTiposMateriaPage() {
           </div>
           <div className="flex items-center justify-end gap-3 px-2">
             <Button size="sm" variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>Eliminar</Button>
+            <Button size="sm" variant="danger" onClick={handleDelete}>Eliminar</Button>
           </div>
         </div>
       </Modal>

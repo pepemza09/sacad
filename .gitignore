@@ -7,6 +7,7 @@ docker-compose.override.yml
 # Session / AI context (not part of the project)
 .opencode.md
 session-*.md
+.claude/
 
 # Django
 *.pyc

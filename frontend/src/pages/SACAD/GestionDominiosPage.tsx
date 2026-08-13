@@ -9,6 +9,7 @@ import { PlusIcon, TrashBinIcon, AngleLeftIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
 import { formatDate } from "../../utils/dateFormat";
 
 interface DomainItem {
@@ -21,6 +22,7 @@ export default function GestionDominiosPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("configuracion.dominios");
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const { data: domains, loading, refetch } = useApiData<DomainItem[]>("/auth/allowed-domains/");
   const [newDomain, setNewDomain] = useState("");
@@ -35,6 +37,7 @@ export default function GestionDominiosPage() {
     setError("");
     try {
       await apiClient.post("/auth/allowed-domains/", { domain: trimmed });
+      showToast("Dominio agregado");
       setNewDomain("");
       refetch();
     } catch (err: any) {
@@ -49,6 +52,7 @@ export default function GestionDominiosPage() {
     if (!deleteId) return;
     try {
       await apiClient.delete(`/auth/allowed-domains/${deleteId}/`);
+      showToast("Dominio eliminado");
       setDeleteId(null);
       refetch();
     } catch {
@@ -171,7 +175,7 @@ export default function GestionDominiosPage() {
             <Button size="sm" variant="outline" onClick={() => setDeleteId(null)}>
               Cancelar
             </Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>
+            <Button size="sm" variant="danger" onClick={handleDelete}>
               Eliminar
             </Button>
           </div>

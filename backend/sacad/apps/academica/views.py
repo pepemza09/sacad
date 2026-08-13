@@ -3,10 +3,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
     Facultad, Sede, Carrera, PlanEstudio,
-    Materia, Correlatividad, TipoMateria, Area,
+    Materia, TipoMateria, Area,
 )
 from .serializers import (
     FacultadSerializer, FacultadListSerializer,
@@ -14,7 +15,7 @@ from .serializers import (
     CarreraSerializer, CarreraListSerializer,
     PlanEstudioSerializer, PlanEstudioListSerializer,
     MateriaSerializer, MateriaDetailSerializer,
-    CorrelatividadSerializer, ArbolCurricularSerializer,
+    ArbolCurricularSerializer,
     TipoMateriaSerializer, AreaSerializer,
 )
 from .filters import (
@@ -25,7 +26,10 @@ from .permissions import EsAdminUniversidad, EsSecretarioAcademico, EsDirectorCa
 
 
 class FacultadViewSet(viewsets.ModelViewSet):
-    queryset = Facultad.objects.all()
+    queryset = Facultad.objects.annotate(
+        carreras_count=Count("carreras", distinct=True),
+        sedes_count=Count("sedes", distinct=True),
+    ).all()
     filterset_class = FacultadFilter
     search_fields = ["codigo", "nombre_corto", "nombre"]
     permission_classes = [IsAuthenticated]
@@ -37,7 +41,7 @@ class FacultadViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
-            return [EsSecretarioAcademico()]
+            return [EsAdminUniversidad()]
         return [IsAuthenticated()]
 
     def destroy(self, request, *args, **kwargs):
@@ -93,7 +97,7 @@ class SedeViewSet(viewsets.ModelViewSet):
 
 
 class CarreraViewSet(viewsets.ModelViewSet):
-    queryset = Carrera.objects.select_related("facultad").all()
+    queryset = Carrera.objects.select_related("facultad").prefetch_related("sedes").all()
     serializer_class = CarreraSerializer
     filterset_class = CarreraFilter
     search_fields = ["nombre", "codigo", "codigo_ministerial", "nombre_corto"]
@@ -124,7 +128,12 @@ class CarreraViewSet(viewsets.ModelViewSet):
 
 
 class PlanEstudioViewSet(viewsets.ModelViewSet):
-    queryset = PlanEstudio.objects.select_related("carrera").all()
+    queryset = (
+        PlanEstudio.objects.select_related("carrera")
+        .annotate(materias_count=Count("materias", distinct=True))
+        .prefetch_related("titulos_intermedios")
+        .all()
+    )
     filterset_class = PlanEstudioFilter
     search_fields = ["codigo"]
     permission_classes = [IsAuthenticated]
@@ -195,7 +204,8 @@ class MateriaPagination(PageNumberPagination):
 class MateriaViewSet(viewsets.ModelViewSet):
     pagination_class = MateriaPagination
     queryset = Materia.objects.select_related(
-        "plan_estudio__carrera", "disciplina", "subdisciplina", "especialidad"
+        "plan_estudio__carrera", "disciplina", "subdisciplina", "especialidad",
+        "tipo", "area",
     ).all()
     filterset_class = MateriaFilter
     search_fields = ["nombre", "codigo", "periodo", "tipo__nombre", "contenidos_minimos"]
@@ -214,12 +224,6 @@ class MateriaViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        n_req = instance.requisito_de.count()
-        if n_req:
-            return Response(
-                {"detail": f"Materia no eliminable: es requisito de {n_req} correlatividad{'es' if n_req != 1 else ''}. Eliminá las correlatividades primero."},
-                status=status.HTTP_409_CONFLICT,
-            )
         n_orig = instance.equivalencias_origen.count()
         if n_orig:
             return Response(
@@ -241,24 +245,11 @@ class MateriaViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=["get"])
-    def correlativas(self, request, pk=None):
-        materia = self.get_object()
-        corrs = materia.correlativas.select_related("materia_requerida").all()
-        data = [
-            {
-                "id": c.materia_requerida.id,
-                "codigo": c.materia_requerida.codigo,
-                "nombre": c.materia_requerida.nombre,
-                "tipo": c.tipo,
-            }
-            for c in corrs
-        ]
-        return Response(data)
-
 
 class AreaViewSet(viewsets.ModelViewSet):
-    queryset = Area.objects.select_related("plan_estudio").all()
+    queryset = Area.objects.select_related("plan_estudio__carrera").annotate(
+        materias_count=Count("materias", distinct=True),
+    ).all()
     serializer_class = AreaSerializer
     search_fields = ["nombre"]
     permission_classes = [IsAuthenticated]
@@ -285,12 +276,6 @@ class AreaViewSet(viewsets.ModelViewSet):
             )
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class CorrelatividadViewSet(viewsets.ModelViewSet):
-    queryset = Correlatividad.objects.select_related("materia", "materia_requerida").all()
-    serializer_class = CorrelatividadSerializer
-    permission_classes = [IsAuthenticated, EsDirectorCarrera]
 
 
 class TipoMateriaViewSet(viewsets.ModelViewSet):

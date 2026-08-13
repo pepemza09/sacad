@@ -12,6 +12,8 @@ import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
+import DataState from "../../components/common/DataState";
 
 interface FacultadOption {
   id: number;
@@ -64,13 +66,14 @@ export default function CarrerasPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("carreras");
+  const { showToast } = useToast();
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("todas");
   const params = new URLSearchParams();
   if (filter) params.set("search", filter);
   if (statusFilter !== "todas") params.set("activa", statusFilter);
   const qs = params.toString();
-  const { data, loading, refetch } = useApiData<{ results: Carrera[] }>(
+  const { data, loading, error, refetch } = useApiData<{ results: Carrera[] }>(
     `/carreras/${qs ? `?${qs}` : ""}`,
     [qs]
   );
@@ -174,6 +177,7 @@ export default function CarrerasPage() {
       } else {
         await apiClient.post("/carreras/", form);
       }
+      showToast(editingId ? "Carrera actualizada" : "Carrera creada");
       modal.closeModal();
       refetch();
     } catch (err: unknown) {
@@ -210,6 +214,7 @@ export default function CarrerasPage() {
     if (!deletingId) return;
     try {
       await apiClient.delete(`/carreras/${deletingId}/`);
+      showToast("Carrera eliminada");
       setDeletingId(null);
       setDeleteError("");
       refetch();
@@ -282,10 +287,16 @@ export default function CarrerasPage() {
                     Cargando...
                   </td>
                 </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7}>
+                    <DataState error={error} />
+                  </td>
+                </tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                    No hay carreras registradas
+                  <td colSpan={7}>
+                    <DataState empty searching={!!filter} emptyMessage="No hay carreras registradas" />
                   </td>
                 </tr>
               ) : (
@@ -541,7 +552,7 @@ export default function CarrerasPage() {
               >
                 Cancelar
               </Button>
-              <Button size="sm" disabled={saving}>
+              <Button size="sm" type="submit" disabled={saving}>
                 {saving
                   ? "Guardando..."
                   : editingId
@@ -576,7 +587,7 @@ export default function CarrerasPage() {
             >
               Cancelar
             </Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>
+            <Button size="sm" variant="danger" onClick={handleDelete}>
               Eliminar
             </Button>
           </div>

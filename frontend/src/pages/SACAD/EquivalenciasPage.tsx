@@ -10,6 +10,8 @@ import { PencilIcon, TrashBinIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
+import DataState from "../../components/common/DataState";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 
 interface MateriaOption {
@@ -57,6 +59,16 @@ interface EquivalenciaForm {
 
 interface FieldErrors {
   [key: string]: string;
+}
+
+interface ConsultaResultado {
+  materia_destino_id: number;
+  materia_destino_codigo: string;
+  materia_destino_nombre: string;
+  tipo: string;
+  porcentaje: number | null;
+  resolucion: string | null;
+  cascada: boolean;
 }
 
 const emptyForm: EquivalenciaForm = {
@@ -174,7 +186,7 @@ function MateriaMultiSelect({
 
 // ── Main page ────────────────────────────────────────────────────
 export default function EquivalenciasPage() {
-  const { data, loading, refetch } = useApiData<{ results: Equivalencia[] }>(
+  const { data, loading, error, refetch } = useApiData<{ results: Equivalencia[] }>(
     "/equivalencias/"
   );
   const { data: planesData } = useApiData<
@@ -187,6 +199,7 @@ export default function EquivalenciasPage() {
   const materias = materiasData?.results || [];
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
+  const { showToast } = useToast();
   const pageSize = 10;
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil((data?.results?.length || 0) / pageSize));
@@ -201,12 +214,23 @@ export default function EquivalenciasPage() {
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
+  const [consultaPlanOrigen, setConsultaPlanOrigen] = useState("");
+  const [consultaPlanDestino, setConsultaPlanDestino] = useState("");
+  const [consultaMaterias, setConsultaMaterias] = useState<MateriaOption[]>([]);
+  const [consultaResultados, setConsultaResultados] = useState<ConsultaResultado[]>([]);
+  const [consultando, setConsultando] = useState(false);
+  const [consultaError, setConsultaError] = useState("");
+  const [consultaHecha, setConsultaHecha] = useState(false);
+
   const planes = planesData?.results || [];
   const origenMaterias = materias.filter(
     (m) => m.plan_estudio === Number(form.plan_origen)
   );
   const destinoMaterias = materias.filter(
     (m) => m.plan_estudio === Number(form.plan_destino)
+  );
+  const consultaOrigenMaterias = materias.filter(
+    (m) => m.plan_estudio === Number(consultaPlanOrigen)
   );
   useEffect(() => { setPage(1); }, [data]);
 
@@ -284,6 +308,7 @@ export default function EquivalenciasPage() {
       } else {
         await apiClient.post("/equivalencias/", payload);
       }
+      showToast(editingId ? "Equivalencia actualizada" : "Equivalencia creada");
       modal.closeModal();
       refetch();
     } catch (err: unknown) {
@@ -316,10 +341,39 @@ export default function EquivalenciasPage() {
     if (!deletingId) return;
     try {
       await apiClient.delete(`/equivalencias/${deletingId}/`);
+      showToast("Equivalencia eliminada");
       setDeletingId(null);
       refetch();
     } catch {
       setDeleteError("No se pudo eliminar la equivalencia.");
+    }
+  };
+
+  const handleConsultar = async () => {
+    setConsultaError("");
+    setConsultaHecha(false);
+    if (!consultaPlanDestino) {
+      setConsultaError("Seleccioná un plan destino.");
+      return;
+    }
+    if (consultaMaterias.length === 0) {
+      setConsultaError("Seleccioná al menos una materia de origen.");
+      return;
+    }
+    setConsultando(true);
+    try {
+      const ids = consultaMaterias.map((m) => m.id).join(",");
+      const res = await apiClient.get("/equivalencias/consultar/", {
+        params: { materias_origen: ids, plan_destino: consultaPlanDestino },
+      });
+      setConsultaResultados(res.data);
+    } catch (err) {
+      const errorMsg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setConsultaError(errorMsg || "No se pudo realizar la consulta.");
+      setConsultaResultados([]);
+    } finally {
+      setConsultando(false);
+      setConsultaHecha(true);
     }
   };
 
@@ -333,6 +387,124 @@ export default function EquivalenciasPage() {
       <PageBreadcrumb items={[{ label: "Equivalencias" }]} />
 
       <div className="space-y-6 mb-6">
+        {/* ── Consulta de Equivalencias ── */}
+        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+          <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Consulta de Equivalencias
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Seleccioná las materias que tenés aprobadas y el plan al que querés pasarte para ver qué equivalen.
+            </p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="consulta-plan-origen">Plan de origen</Label>
+                <select
+                  id="consulta-plan-origen"
+                  value={consultaPlanOrigen}
+                  onChange={(e) => {
+                    setConsultaPlanOrigen(e.target.value);
+                    setConsultaMaterias([]);
+                    setConsultaResultados([]);
+                    setConsultaHecha(false);
+                  }}
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                >
+                  <option value="">Seleccionar plan...</option>
+                  {planes.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.carrera_nombre} - {p.codigo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="consulta-plan-destino">Plan destino</Label>
+                <select
+                  id="consulta-plan-destino"
+                  value={consultaPlanDestino}
+                  onChange={(e) => {
+                    setConsultaPlanDestino(e.target.value);
+                    setConsultaResultados([]);
+                    setConsultaHecha(false);
+                  }}
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90"
+                >
+                  <option value="">Seleccionar plan...</option>
+                  {planes.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.carrera_nombre} - {p.codigo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <MateriaMultiSelect
+              label="Materias aprobadas (origen)"
+              selected={consultaMaterias}
+              onChange={(items) => {
+                setConsultaMaterias(items);
+                setConsultaResultados([]);
+                setConsultaHecha(false);
+              }}
+              placeholder={consultaPlanOrigen ? "Buscá las materias aprobadas..." : "Primero seleccioná el plan de origen"}
+              materias={consultaOrigenMaterias}
+            />
+            <div className="flex items-center justify-end">
+              <Button size="sm" onClick={handleConsultar} disabled={consultando}>
+                {consultando ? "Consultando..." : "Consultar"}
+              </Button>
+            </div>
+
+            {consultaError && (
+              <div className="rounded-lg bg-error-50 border border-error-200 px-4 py-3 text-sm text-error-700 dark:bg-error-500/10 dark:border-error-500/20 dark:text-error-400">
+                {consultaError}
+              </div>
+            )}
+            {consultaHecha && !consultaError && (
+              consultaResultados.length === 0 ? (
+                <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-4 text-sm text-gray-500 dark:bg-gray-800/50 dark:border-gray-700">
+                  No se encontraron equivalencias para el plan seleccionado.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Resultado de la consulta
+                  </p>
+                  {consultaResultados.map((r) => (
+                    <div
+                      key={r.materia_destino_id}
+                      className="flex items-center gap-3 p-3 border rounded-lg border-gray-200 dark:border-gray-700 text-sm"
+                    >
+                      <span className="text-brand-500 dark:text-brand-400 font-semibold">{r.materia_destino_codigo}</span>
+                      <span className="text-gray-800 dark:text-white/90 font-medium">{r.materia_destino_nombre}</span>
+                      <span
+                        className={`ml-auto inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
+                          r.tipo === "total"
+                            ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500"
+                            : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-500"
+                        }`}
+                      >
+                        {r.tipo === "total" ? "Total" : `Parcial (${r.porcentaje ?? "-"}%)`}
+                      </span>
+                      {r.cascada && (
+                        <span className="inline-flex px-2 py-0.5 text-xs rounded-full bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-500">
+                          Cascada
+                        </span>
+                      )}
+                      {r.resolucion && (
+                        <span className="text-xs text-gray-400">{r.resolucion}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
         {/* ── Equivalencias Registradas ── */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
@@ -369,10 +541,10 @@ export default function EquivalenciasPage() {
           <div className="p-6">
             {loading ? (
               <p className="text-center text-gray-500">Cargando...</p>
+            ) : error ? (
+              <DataState error={error} />
             ) : data?.results?.length === 0 ? (
-              <p className="text-center text-gray-400">
-                No hay equivalencias registradas
-              </p>
+              <DataState empty emptyMessage="No hay equivalencias registradas" />
             ) : (
               <>
               <div className="space-y-2">
@@ -618,7 +790,7 @@ export default function EquivalenciasPage() {
               <Button size="sm" variant="outline" onClick={modal.closeModal}>
                 Cancelar
               </Button>
-              <Button size="sm" disabled={saving}>
+              <Button size="sm" type="submit" disabled={saving}>
                 {saving
                   ? "Guardando..."
                   : editingId
@@ -660,7 +832,7 @@ export default function EquivalenciasPage() {
             </Button>
             <Button
               size="sm"
-              className="bg-error-500 text-white hover:bg-error-600"
+              variant="danger"
               onClick={handleDelete}
             >
               Eliminar

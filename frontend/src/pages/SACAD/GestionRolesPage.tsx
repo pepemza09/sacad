@@ -8,6 +8,7 @@ import { AngleLeftIcon } from "../../icons";
 import { Modal } from "../../components/ui/modal";
 import Switch from "../../components/form/switch/Switch";
 import { apiClient } from "../../api";
+import { useToast } from "../../context/ToastContext";
 
 interface UserItem {
   id: number;
@@ -59,6 +60,7 @@ const defaultMenuPerms = (): MenuPerm[] =>
   MENU_ITEMS.map((m) => ({ menu_key: m.key, can_read: false, can_write: false }));
 
 export default function GestionRolesPage() {
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const { data: users, loading, refetch } = useApiData<UserItem[]>("/auth/users/");
   const { data: allGroups, refetch: refetchGroups } = useApiData<GroupItem[]>("/auth/groups/");
@@ -103,6 +105,7 @@ export default function GestionRolesPage() {
       await apiClient.patch(`/auth/users/${userId}/groups/`, {
         groups: editedGroups[userId] || [],
       });
+      showToast("Permisos guardados");
       refetch();
     } catch {
     } finally {
@@ -178,6 +181,7 @@ export default function GestionRolesPage() {
         groupId = created.data.id;
       }
       await apiClient.put(`/auth/groups/${groupId}/permissions/`, menuPerms);
+      showToast(editingGroupId ? "Grupo renombrado" : "Grupo creado");
       setGroupName("");
       await Promise.all([refetchGroups(), refetchGroupPerms()]);
       modal.closeModal();
@@ -195,6 +199,7 @@ export default function GestionRolesPage() {
     if (!window.confirm(`¿Eliminar el grupo "${groupName}"?`)) return;
     try {
       await apiClient.delete(`/auth/groups/${groupId}/`);
+      showToast("Grupo eliminado");
       await Promise.all([refetchGroups(), refetchGroupPerms()]);
     } catch {
       alert("No se pudo eliminar el grupo.");

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Facultad, Sede, Carrera, PlanEstudio, TituloIntermedio, Area, Materia, Correlatividad, TipoMateria
+from .models import Facultad, Sede, Carrera, PlanEstudio, TituloIntermedio, Area, Materia, TipoMateria
 
 
 class FacultadSerializer(serializers.ModelSerializer):
@@ -49,10 +49,10 @@ class FacultadListSerializer(serializers.ModelSerializer):
         fields = ["id", "codigo", "nombre_corto", "nombre", "activa", "carreras_count", "sedes_count"]
 
     def get_carreras_count(self, obj):
-        return obj.carreras.count()
+        return getattr(obj, "carreras_count", obj.carreras.count())
 
     def get_sedes_count(self, obj):
-        return obj.sedes.count()
+        return getattr(obj, "sedes_count", obj.sedes.count())
 
 
 class CarreraSerializer(serializers.ModelSerializer):
@@ -114,7 +114,7 @@ class PlanEstudioSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def get_materias_count(self, obj):
-        return obj.materias.count()
+        return getattr(obj, "materias_count", obj.materias.count())
 
     def create(self, validated_data):
         titulos_data = validated_data.pop("titulos_intermedios", [])
@@ -150,7 +150,7 @@ class PlanEstudioListSerializer(serializers.ModelSerializer):
         ]
 
     def get_materias_count(self, obj):
-        return obj.materias.count()
+        return getattr(obj, "materias_count", obj.materias.count())
 
 
 class AreaSerializer(serializers.ModelSerializer):
@@ -163,7 +163,7 @@ class AreaSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def get_materias_count(self, obj):
-        return obj.materias.count()
+        return getattr(obj, "materias_count", obj.materias.count())
 
 
 class TipoMateriaSerializer(serializers.ModelSerializer):
@@ -204,39 +204,9 @@ class MateriaDetailSerializer(serializers.ModelSerializer):
     subdisciplina_descripcion = serializers.CharField(source="subdisciplina.descripcion", read_only=True, allow_null=True)
     especialidad_codigo = serializers.CharField(source="especialidad.codigo", read_only=True, allow_null=True)
     especialidad_descripcion = serializers.CharField(source="especialidad.descripcion", read_only=True, allow_null=True)
-    correlativas = serializers.SerializerMethodField()
-    requisito_de = serializers.SerializerMethodField()
 
     class Meta:
         model = Materia
-        fields = "__all__"
-
-    def get_correlativas(self, obj):
-        return [
-            {
-                "id": c.materia_requerida.id,
-                "codigo": c.materia_requerida.codigo,
-                "nombre": c.materia_requerida.nombre,
-                "tipo": c.tipo,
-            }
-            for c in obj.correlativas.all()
-        ]
-
-    def get_requisito_de(self, obj):
-        return [
-            {
-                "id": r.materia.id,
-                "codigo": r.materia.codigo,
-                "nombre": r.materia.nombre,
-                "tipo": r.tipo,
-            }
-            for r in obj.requisito_de.all()
-        ]
-
-
-class CorrelatividadSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Correlatividad
         fields = "__all__"
 
 

@@ -62,6 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    const refresh = sessionStorage.getItem("refresh_token");
+    if (refresh) {
+      apiClient.post("/auth/logout/", { refresh }).catch(() => {});
+    }
     sessionStorage.removeItem("access_token");
     sessionStorage.removeItem("refresh_token");
     setUser(null);

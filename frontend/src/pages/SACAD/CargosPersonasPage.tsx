@@ -11,6 +11,8 @@ import { PencilIcon, TrashBinIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
+import DataState from "../../components/common/DataState";
 import { formatDate } from "../../utils/dateFormat";
 
 interface MateriaDisplay {
@@ -80,8 +82,9 @@ export default function CargosPersonasPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("docentes");
+  const { showToast } = useToast();
 
-  const { data, loading, refetch } = useApiData<{ results: CargoDocente[] }>("/cargos-docentes/", []);
+  const { data, loading, error, refetch } = useApiData<{ results: CargoDocente[] }>("/cargos-docentes/", []);
   const { data: docentesData } = useApiData<{ results: Record<string, unknown>[] }>("/docentes/", []);
   const { data: cargosData } = useApiData<{ results: Record<string, unknown>[] }>("/cargos/", []);
   const { data: dedicacionesData } = useApiData<{ results: Record<string, unknown>[] }>("/dedicaciones/", []);
@@ -246,6 +249,7 @@ export default function CargosPersonasPage() {
       } else {
         await apiClient.post("/cargos-docentes/", payload);
       }
+      showToast(editingId ? "Cargo actualizado" : "Cargo creado");
       close();
       refetch();
     } catch (err: unknown) {
@@ -273,6 +277,7 @@ export default function CargosPersonasPage() {
     if (!deletingId) return;
     try {
       await apiClient.delete(`/cargos-docentes/${deletingId}/`);
+      showToast("Cargo eliminado");
       setDeletingId(null);
       refetch();
     } catch {
@@ -329,8 +334,10 @@ export default function CargosPersonasPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={canWrite ? 9 : 8} className="px-4 py-8 text-center">Cargando...</td></tr>
+              ) : error ? (
+                <tr><td colSpan={canWrite ? 9 : 8}><DataState error={error} /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={canWrite ? 9 : 8} className="px-4 py-8 text-center text-gray-400">No hay cargos registrados.</td></tr>
+                <tr><td colSpan={canWrite ? 9 : 8}><DataState empty searching={!!search} emptyMessage="No hay cargos registrados." /></td></tr>
               ) : (
                 filtered.map((c) => (
                   <tr key={c.id} className="border-b border-gray-200 dark:border-gray-700">
@@ -619,7 +626,7 @@ export default function CargosPersonasPage() {
 
             <div className="flex items-center justify-end gap-3 px-2 mt-4">
               <Button size="sm" variant="outline" onClick={close}>Cancelar</Button>
-              <Button size="sm" disabled={saving}>
+              <Button size="sm" type="submit" disabled={saving}>
                 {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear cargo"}
               </Button>
             </div>
@@ -640,7 +647,7 @@ export default function CargosPersonasPage() {
             </div>
           <div className="flex items-center justify-end gap-3 px-2">
             <Button size="sm" variant="outline" onClick={() => setDeletingId(null)}>Cancelar</Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>Eliminar</Button>
+            <Button size="sm" variant="danger" onClick={handleDelete}>Eliminar</Button>
           </div>
         </div>
       </Modal>

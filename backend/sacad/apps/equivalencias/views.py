@@ -2,16 +2,25 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
+from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from .models import Equivalencia
 from .serializers import EquivalenciaSerializer
 from .engine import EquivalenciasEngine
+from sacad.apps.academica.models import Materia
 from sacad.apps.usuarios.permissions import tiene_permiso_menu
 
 
 class EquivalenciaViewSet(viewsets.ModelViewSet):
-    queryset = Equivalencia.objects.prefetch_related(
-        "materias_origen", "materias_destino"
+    queryset = Equivalencia.objects.select_related("plan_destino").prefetch_related(
+        Prefetch(
+            "materias_origen",
+            queryset=Materia.objects.select_related("plan_estudio__carrera"),
+        ),
+        Prefetch(
+            "materias_destino",
+            queryset=Materia.objects.select_related("plan_estudio__carrera"),
+        ),
     ).all()
     serializer_class = EquivalenciaSerializer
     search_fields = ["resolucion", "observaciones"]

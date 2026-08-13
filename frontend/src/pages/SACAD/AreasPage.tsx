@@ -9,6 +9,8 @@ import { TrashBinIcon, PencilIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
+import DataState from "../../components/common/DataState";
 
 interface PlanOption {
   id: number;
@@ -35,7 +37,8 @@ export default function AreasPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("areas");
-  const { data: areas, loading, refetch } = useApiData<{ results: Area[] }>("/areas/");
+  const { showToast } = useToast();
+  const { data: areas, loading, error: loadError, refetch } = useApiData<{ results: Area[] }>("/areas/");
   const { data: planes } = useApiData<{ results: PlanOption[] }>("/planes/");
   const modal = useModal();
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -123,6 +126,7 @@ export default function AreasPage() {
       } else {
         await apiClient.post("/areas/", payload);
       }
+      showToast(editingId ? "Área actualizada" : "Área creada");
       closeModal();
       refetch();
     } catch (err: unknown) {
@@ -143,6 +147,7 @@ export default function AreasPage() {
     if (!deleteId) return;
     try {
       await apiClient.delete(`/areas/${deleteId}/`);
+      showToast("Área eliminada");
       setDeleteId(null);
       setDeleteError("");
       refetch();
@@ -192,8 +197,10 @@ export default function AreasPage() {
               <tbody>
                 {loading ? (
                   <tr><td colSpan={6} className="px-4 py-8 text-center">Cargando...</td></tr>
+                ) : loadError ? (
+                  <tr><td colSpan={6}><DataState error={loadError} /></td></tr>
                 ) : items.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No hay áreas registradas.</td></tr>
+                  <tr><td colSpan={6}><DataState empty emptyMessage="No hay áreas registradas." /></td></tr>
                 ) : (
                   items.map((a) => (
                     <tr key={a.id} className="border-b border-gray-200 dark:border-gray-700">
@@ -320,7 +327,7 @@ export default function AreasPage() {
               <Button size="sm" variant="outline" onClick={closeModal}>
                 Cancelar
               </Button>
-              <Button size="sm" disabled={saving || !nombre.trim()}>
+              <Button size="sm" type="submit" disabled={saving || !nombre.trim()}>
                 {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear área"}
               </Button>
             </div>
@@ -341,7 +348,7 @@ export default function AreasPage() {
           </div>
           <div className="flex items-center justify-end gap-3 px-2">
             <Button size="sm" variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>Eliminar</Button>
+            <Button size="sm" variant="danger" onClick={handleDelete}>Eliminar</Button>
           </div>
         </div>
       </Modal>

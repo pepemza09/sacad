@@ -1,14 +1,23 @@
 #!/bin/bash
 set -e
 
-echo "Creating migrations..."
-python manage.py makemigrations --noinput
+if [ "${DJANGO_SETTINGS_MODULE:-sacad.settings.development}" = "sacad.settings.production" ]; then
+  echo "Producción: se omiten makemigrations (las migraciones deben estar versionadas en el repo)."
+else
+  echo "Creating migrations..."
+  python manage.py makemigrations --noinput
+fi
 
 echo "Running migrations..."
 python manage.py migrate --noinput
 
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --clear --no-post-process
+
+if [ "$#" -gt 0 ]; then
+  echo "Starting server (comando custom)..."
+  exec "$@"
+fi
 
 echo "Starting server..."
 exec gunicorn sacad.wsgi:application \

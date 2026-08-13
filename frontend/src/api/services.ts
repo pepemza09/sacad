@@ -13,17 +13,11 @@ export const academicaApi = {
   materias: (params?: Record<string, unknown>) =>
     apiClient.get("/materias/", { params }),
   materiaDetalle: (id: number) => apiClient.get(`/materias/${id}/`),
-  materiaCorrelativas: (id: number) =>
-    apiClient.get(`/materias/${id}/correlativas/`),
   createMateria: (data: Record<string, unknown>) =>
     apiClient.post("/materias/", data),
   updateMateria: (id: number, data: Record<string, unknown>) =>
     apiClient.put(`/materias/${id}/`, data),
   deleteMateria: (id: number) => apiClient.delete(`/materias/${id}/`),
-  createCorrelatividad: (data: Record<string, unknown>) =>
-    apiClient.post("/correlatividades/", data),
-  deleteCorrelatividad: (id: number) =>
-    apiClient.delete(`/correlatividades/${id}/`),
   dashboard: (params?: Record<string, unknown>) =>
     apiClient.get("/dashboard/stats/", { params }),
 };

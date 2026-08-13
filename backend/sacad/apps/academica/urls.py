@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (
     FacultadViewSet, SedeViewSet, CarreraViewSet,
-    PlanEstudioViewSet, MateriaViewSet, CorrelatividadViewSet,
+    PlanEstudioViewSet, MateriaViewSet,
     TipoMateriaViewSet, AreaViewSet,
 )
 from .dashboard import dashboard_stats
@@ -13,7 +13,6 @@ router.register(r"sedes", SedeViewSet)
 router.register(r"carreras", CarreraViewSet)
 router.register(r"planes", PlanEstudioViewSet)
 router.register(r"materias", MateriaViewSet)
-router.register(r"correlatividades", CorrelatividadViewSet)
 router.register(r"tipos-materia", TipoMateriaViewSet)
 router.register(r"areas", AreaViewSet)
 

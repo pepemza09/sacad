@@ -11,6 +11,8 @@ import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
+import DataState from "../../components/common/DataState";
 
 
 const colorPalette = [
@@ -165,6 +167,7 @@ export default function MateriasPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("materias");
+  const { showToast } = useToast();
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -172,7 +175,7 @@ export default function MateriasPage() {
   if (search) params.set("search", search);
   params.set("page", String(page));
   const qs = params.toString();
-  const { data, loading, refetch } = useApiData<{ count: number; results: Materia[]; next: string | null; previous: string | null }>(
+  const { data, loading, error, refetch } = useApiData<{ count: number; results: Materia[]; next: string | null; previous: string | null }>(
     `/materias/?${qs}`,
     [qs]
   );
@@ -324,6 +327,7 @@ export default function MateriasPage() {
       } else {
         await apiClient.post("/materias/", payload);
       }
+      showToast(editingId ? "Materia actualizada" : "Materia creada");
       modal.closeModal();
       refetch();
     } catch (err: unknown) {
@@ -353,11 +357,12 @@ export default function MateriasPage() {
     if (!deletingId) return;
     try {
       await apiClient.delete(`/materias/${deletingId}/`);
+      showToast("Materia eliminada");
       setDeletingId(null);
       refetch();
     } catch (err) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setDeleteError(detail || "No se pudo eliminar la materia. Puede que tenga correlativas asociadas.");
+      setDeleteError(detail || "No se pudo eliminar la materia.");
     }
   };
 
@@ -427,10 +432,12 @@ export default function MateriasPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={10} className="px-4 py-8 text-center">Cargando...</td></tr>
+              ) : error ? (
+                <tr><td colSpan={10}><DataState error={error} /></td></tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
-                    No hay materias registradas
+                  <td colSpan={10}>
+                    <DataState empty searching={!!search} emptyMessage="No hay materias registradas" />
                   </td>
                 </tr>
               ) : (
@@ -756,7 +763,7 @@ export default function MateriasPage() {
               <Button size="sm" variant="outline" onClick={modal.closeModal}>
                 Cancelar
               </Button>
-              <Button size="sm" disabled={saving}>
+              <Button size="sm" type="submit" disabled={saving}>
                 {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear materia"}
               </Button>
             </div>
@@ -783,7 +790,7 @@ export default function MateriasPage() {
             <Button size="sm" variant="outline" onClick={() => setDeletingId(null)}>
               Cancelar
             </Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>
+            <Button size="sm" variant="danger" onClick={handleDelete}>
               Eliminar
             </Button>
           </div>

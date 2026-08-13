@@ -12,6 +12,8 @@ import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
+import DataState from "../../components/common/DataState";
 
 interface CarreraOption {
   id: number;
@@ -73,11 +75,12 @@ export default function PlanesPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("planes");
+  const { showToast } = useToast();
   const [filter, setFilter] = useState("");
   const params = new URLSearchParams();
   if (filter) params.set("search", filter);
   const qs = params.toString();
-  const { data, loading, refetch } = useApiData<{ results: PlanEstudio[] }>(
+  const { data, loading, error, refetch } = useApiData<{ results: PlanEstudio[] }>(
     `/planes/${qs ? `?${qs}` : ""}`,
     [qs]
   );
@@ -174,6 +177,7 @@ export default function PlanesPage() {
       } else {
         await apiClient.post("/planes/", payload);
       }
+      showToast(editingId ? "Plan de estudio actualizado" : "Plan de estudio creado");
       modal.closeModal();
       refetch();
     } catch (err: unknown) {
@@ -203,6 +207,7 @@ export default function PlanesPage() {
     if (!deletingId) return;
     try {
       await apiClient.delete(`/planes/${deletingId}/`);
+      showToast("Plan de estudio eliminado");
       setDeletingId(null);
       setDeleteError("");
       refetch();
@@ -284,10 +289,16 @@ export default function PlanesPage() {
                     Cargando...
                   </td>
                 </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={10}>
+                    <DataState error={error} />
+                  </td>
+                </tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
-                    No hay planes de estudio registrados
+                  <td colSpan={10}>
+                    <DataState empty searching={!!filter} emptyMessage="No hay planes de estudio registrados" />
                   </td>
                 </tr>
               ) : (
@@ -563,7 +574,7 @@ export default function PlanesPage() {
               <Button size="sm" variant="outline" onClick={modal.closeModal}>
                 Cancelar
               </Button>
-              <Button size="sm" disabled={saving}>
+              <Button size="sm" type="submit" disabled={saving}>
                 {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear plan"}
               </Button>
             </div>
@@ -590,7 +601,7 @@ export default function PlanesPage() {
             <Button size="sm" variant="outline" onClick={() => setDeletingId(null)}>
               Cancelar
             </Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>
+            <Button size="sm" variant="danger" onClick={handleDelete}>
               Eliminar
             </Button>
           </div>

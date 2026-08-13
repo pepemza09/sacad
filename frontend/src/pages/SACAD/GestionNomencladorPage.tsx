@@ -9,6 +9,7 @@ import { TrashBinIcon, AngleLeftIcon, PencilIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
 
 interface EntradaNomenclador {
   id: string;
@@ -41,6 +42,7 @@ const FORM_INIT: FormState = {
 
 function NomencladorTable({ canWrite }: { canWrite: boolean }) {
   const { data, loading, refetch } = useApiData<EntradaNomenclador[]>("/entradas/");
+  const { showToast } = useToast();
   const entries = data ?? [];
 
   const [form, setForm] = useState<FormState>(FORM_INIT);
@@ -111,6 +113,7 @@ function NomencladorTable({ canWrite }: { canWrite: boolean }) {
       };
       if (!form.id) delete payload.id;
       await apiClient.post("/entradas/", payload);
+      showToast(form.id ? "Entrada actualizada" : "Entrada creada");
       cancel();
       refetch();
     } catch (err: unknown) {
@@ -133,6 +136,7 @@ function NomencladorTable({ canWrite }: { canWrite: boolean }) {
     const pk = deleteId.split("_", 2)[1];
     try {
       await apiClient.delete(`/${tipo}/${pk}/`);
+      showToast("Entrada eliminada");
       setDeleteId(null);
       refetch();
     } catch (err: unknown) {
@@ -321,7 +325,7 @@ function NomencladorTable({ canWrite }: { canWrite: boolean }) {
           </div>
           <div className="flex items-center justify-end gap-3 px-2">
             <Button size="sm" variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>Eliminar</Button>
+            <Button size="sm" variant="danger" onClick={handleDelete}>Eliminar</Button>
           </div>
         </div>
       </Modal>

@@ -90,12 +90,9 @@ class CargoDocenteViewSet(viewsets.ModelViewSet):
 
     def check_permissions(self, request):
         super().check_permissions(request)
-        if request.method not in SAFE_METHODS:
-            if not tiene_permiso_menu(request.user, "docentes", require_write=True):
-                self.permission_denied(
-                    request,
-                    message="No tenés permiso para modificar cargos docentes.",
-                )
+        read_ok = tiene_permiso_menu(request.user, "docentes", require_write=request.method not in SAFE_METHODS)
+        if not read_ok:
+            self.permission_denied(request, message="No tenés permiso para ver o modificar cargos docentes.")
 
 
 class DocenteViewSet(viewsets.ModelViewSet):
@@ -105,12 +102,9 @@ class DocenteViewSet(viewsets.ModelViewSet):
 
     def check_permissions(self, request):
         super().check_permissions(request)
-        if request.method not in SAFE_METHODS:
-            if not tiene_permiso_menu(request.user, "docentes", require_write=True):
-                self.permission_denied(
-                    request,
-                    message="No tenés permiso para modificar docentes.",
-                )
+        read_ok = tiene_permiso_menu(request.user, "docentes", require_write=request.method not in SAFE_METHODS)
+        if not read_ok:
+            self.permission_denied(request, message="No tenés permiso para ver o modificar docentes.")
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

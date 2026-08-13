@@ -9,6 +9,7 @@ import { UserCheckIcon, CheckLineIcon, CloseLineIcon, AngleLeftIcon } from "../.
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
 import { formatDate } from "../../utils/dateFormat";
 
 interface UserItem {
@@ -44,6 +45,7 @@ export default function AutorizacionUsuariosPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("configuracion.usuarios");
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("all");
   const qs = statusFilter !== "all" ? `?status=${statusFilter}` : "";
@@ -54,10 +56,11 @@ export default function AutorizacionUsuariosPage() {
   const [deactivateError, setDeactivateError] = useState("");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
-  const handleApprove = async (userId: number) => {
+  const handleApprove = async (userId: number, reactivate = false) => {
     setActionLoading(userId);
     try {
       await apiClient.patch(`/auth/approve-user/${userId}/`);
+      showToast(reactivate ? "Usuario reactivado" : "Usuario aprobado");
       refetch();
     } catch {
     } finally {
@@ -70,6 +73,7 @@ export default function AutorizacionUsuariosPage() {
     setActionLoading(rejectingId);
     try {
       await apiClient.patch(`/auth/reject-user/${rejectingId}/`);
+      showToast("Usuario rechazado");
       setRejectingId(null);
       refetch();
     } catch {
@@ -84,6 +88,7 @@ export default function AutorizacionUsuariosPage() {
     setActionLoading(deactivatingId);
     try {
       await apiClient.patch(`/auth/reject-user/${deactivatingId}/`);
+      showToast("Usuario desactivado");
       setDeactivatingId(null);
       refetch();
     } catch {
@@ -216,7 +221,7 @@ export default function AutorizacionUsuariosPage() {
                       )}
                       {u.approval_status === "rejected" && (
                         <button
-                          onClick={() => handleApprove(u.id)}
+                          onClick={() => handleApprove(u.id, true)}
                           disabled={actionLoading === u.id}
                           className="inline-flex items-center gap-1 rounded-lg bg-success-50 px-3 py-1.5 text-xs font-medium text-success-700 hover:bg-success-100 dark:bg-success-500/15 dark:text-success-500 dark:hover:bg-success-500/25 disabled:opacity-50"
                         >
@@ -254,7 +259,7 @@ export default function AutorizacionUsuariosPage() {
             </Button>
             <Button
               size="sm"
-              className="bg-error-500 text-white hover:bg-error-600"
+              variant="danger"
               onClick={handleReject}
               disabled={actionLoading === rejectingId}
             >

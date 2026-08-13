@@ -65,3 +65,31 @@ class CargoDocenteSerializer(serializers.ModelSerializer):
             }
             for m in obj.materias.all()
         ]
+
+    def validate(self, data):
+        fecha_inicio = data.get("fecha_inicio")
+        fecha_fin = data.get("fecha_fin")
+
+        if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+            raise serializers.ValidationError(
+                {
+                    "fecha_fin": (
+                        "La fecha de fin no puede ser anterior a la fecha de inicio."
+                    )
+                }
+            )
+
+        caracter = data.get("caracter")
+        if caracter is None and self.instance is not None:
+            caracter = self.instance.caracter
+        if caracter is not None:
+            requiere = caracter.requiere_fecha
+            if requiere in ("inicio", "ambas") and not fecha_inicio:
+                raise serializers.ValidationError(
+                    {"fecha_inicio": "Este carácter requiere fecha de inicio."}
+                )
+            if requiere in ("fin", "ambas") and not fecha_fin:
+                raise serializers.ValidationError(
+                    {"fecha_fin": "Este carácter requiere fecha de fin."}
+                )
+        return data

@@ -9,6 +9,7 @@ import { TrashBinIcon, AngleLeftIcon, PencilIcon } from "../../icons";
 import { apiClient } from "../../api";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
 
 type Tab = "cargos" | "dedicaciones" | "caracteres";
 
@@ -35,6 +36,7 @@ const TABS: { key: Tab; label: string; endpoint: string; title: string; desc: st
 
 function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: boolean }) {
   const { data, loading, refetch } = useApiData<{ results: Designacion[] }>(tab.endpoint);
+  const { showToast } = useToast();
   const items = data?.results ?? [];
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -94,6 +96,7 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
       } else {
         await apiClient.post(tab.endpoint, payload);
       }
+      showToast(editingId ? "Registro actualizado" : "Registro creado");
       cancel();
       refetch();
     } catch (err: unknown) {
@@ -114,6 +117,7 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
     if (!deleteId) return;
     try {
       await apiClient.delete(`${tab.endpoint}${deleteId}/`);
+      showToast("Registro eliminado");
       setDeleteId(null);
       refetch();
     } catch {
@@ -255,7 +259,7 @@ function DesignacionTable({ tab, canWrite }: { tab: typeof TABS[0]; canWrite: bo
           </div>
           <div className="flex items-center justify-end gap-3 px-2">
             <Button size="sm" variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>Eliminar</Button>
+            <Button size="sm" variant="danger" onClick={handleDelete}>Eliminar</Button>
           </div>
         </div>
       </Modal>

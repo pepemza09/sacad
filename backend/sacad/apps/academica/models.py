@@ -1,5 +1,4 @@
 from django.db import models
-from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 
 from sacad.apps.nomenclador.models import Disciplina, Subdisciplina, Especialidad
@@ -223,31 +222,4 @@ class Materia(models.Model):
         return f"{self.codigo} - {self.nombre}"
 
 
-class Correlatividad(models.Model):
-    TIPO_CHOICES = [
-        ("cursar", "Para cursar"),
-        ("cursado", "Cursado"),
-        ("aprobar", "Para aprobar"),
-        ("aprobacion", "Aprobación"),
-        ("regular", "Regular"),
-    ]
 
-    materia = models.ForeignKey(
-        Materia, on_delete=models.CASCADE, related_name="correlativas"
-    )
-    materia_requerida = models.ForeignKey(
-        Materia, on_delete=models.CASCADE, related_name="requisito_de"
-    )
-    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
-
-    class Meta:
-        verbose_name = "Correlatividad"
-        verbose_name_plural = "Correlatividades"
-        unique_together = ["materia", "materia_requerida", "tipo"]
-
-    def __str__(self):
-        return f"{self.materia.nombre} requiere {self.materia_requerida.nombre} ({self.get_tipo_display()})"
-
-    def clean(self):
-        if self.materia.plan_estudio != self.materia_requerida.plan_estudio:
-            raise ValidationError("Las correlativas deben ser del mismo plan de estudio.")

@@ -12,6 +12,11 @@ if SECURE_SSL_REDIRECT:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
+# Django detrás de nginx / balanceador: confiar en X-Forwarded-Proto
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
 STATIC_ROOT = "/app/staticfiles"
 MEDIA_ROOT = "/app/media"
 

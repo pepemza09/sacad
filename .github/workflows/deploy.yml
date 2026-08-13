@@ -53,20 +53,46 @@ jobs:
               echo "No hay base de datos corriendo - se omite el backup (deploy inicial)."
             fi
 
-            echo "=== Force stop old containers ==="
-            docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
-
-            echo "=== Rebuild and restart ==="
-            docker compose -f docker-compose.prod.yml build
-            docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans || {
-              echo "=== Deep cleanup and retry ==="
-              docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
-              docker container prune -f 2>/dev/null || true
-              docker network prune -f 2>/dev/null || true
-              docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
+            echo "=== Build images (sin tocar los contenedores actuales) ==="
+            docker compose -f docker-compose.prod.yml build || {
+              echo "=== Build falló - se mantienen los contenedores actuales corriendo ==="
+              exit 1
             }
 
-            echo "=== Clean old images ==="
+            echo "=== Recreate containers ==="
+            if ! docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans; then
+              echo "=== Up falló - limpieza de contenedores viejos y reintento ==="
+              docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
+              docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
+            fi
+
+            echo "=== Esperando a que los servicios estén sanos ==="
+            for i in $(seq 1 30); do
+              if python3 -c "import urllib.request; urllib.request.urlopen('http://localhost/', timeout=5)" 2>/dev/null; then
+                echo "Frontend OK"
+                break
+              fi
+              if [ "$i" = "30" ]; then
+                echo "ERROR: el frontend no respondió tras 30 intentos."
+                docker compose -f docker-compose.prod.yml ps
+                exit 1
+              fi
+              sleep 5
+            done
+            for i in $(seq 1 30); do
+              if docker compose -f docker-compose.prod.yml exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/admin/login/', timeout=5)" 2>/dev/null; then
+                echo "Backend OK"
+                break
+              fi
+              if [ "$i" = "30" ]; then
+                echo "ERROR: el backend no respondió tras 30 intentos."
+                docker compose -f docker-compose.prod.yml ps
+                exit 1
+              fi
+              sleep 5
+            done
+
+            echo "=== Clean old images (solo dangling) ==="
             docker image prune -f
 
             echo "=== Deploy complete ==="

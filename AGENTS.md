@@ -20,7 +20,7 @@ sacad/
 │   │   ├── urls.py           # Rutas raíz (admin, api/auth/, api/ academica + equivalencias + docentes, accounts/)
 │   │   ├── celery.py         # Placeholder (vacio)
 │   │   └── apps/
-│   │       ├── academica/    # Facultades, Sedes, Carreras, Planes, Materias, Correlatividades, TipoMateria, Area
+│   │       ├── academica/    # Facultades, Sedes, Carreras, Planes, Materias, TipoMateria, Area
 │   │       ├── usuarios/     # Auth, Profile, AllowedDomain, Google OAuth
 │   │       ├── equivalencias/# Equivalencias entre materias + motor de resolución en cascada
 │   │       ├── docentes/     # Docentes (CRUD completo con CUIT/CUIL, legajo)
@@ -83,7 +83,6 @@ sacad/
 | `TipoMateria` | nombre (unique), activo | — |
 | `Area` | plan_estudio (FK), nombre, orden | unique_together: (plan_estudio, nombre). Creado DESPUÉS de TipoMateria en models.py |
 | `Materia` | plan_estudio (FK), codigo, nombre, año, cuatrimestre (1/2/anual), creditos, periodo, carga_horaria_semanal (null=True), carga_horaria_total, tipo (FK->TipoMateria, null=True), area (FK->Area, SET_NULL), contenidos_minimos | unique_together: (plan_estudio, codigo) |
-| `Correlatividad` | materia (FK), materia_requerida (FK), tipo (cursar/cursado/aprobar/aprobacion/regular) | unique_together: (materia, materia_requerida, tipo). Valida mismo plan_estudio |
 
 ### docentes
 
@@ -156,8 +155,6 @@ sacad/
 | `/planes/` | PlanEstudioViewSet | Auth | Secretario Académico |
 | `/planes/<id>/arbol-curricular/` | @action GET | Auth | — |
 | `/materias/` | MateriaViewSet | Auth | Director Carrera |
-| `/materias/<id>/correlativas/` | @action GET | Auth | — |
-| `/correlatividades/` | CorrelatividadViewSet | Director Carrera | Director Carrera |
 | `/tipos-materia/` | TipoMateriaViewSet | Auth | Secretario Académico |
 | `/areas/` | AreaViewSet | Auth | Secretario Académico |
 | `/dashboard/stats/` | Function GET | Auth | — |
@@ -189,7 +186,7 @@ sacad/
 |-------|--------|----------|
 | `EsAdminUniversidad` | `is_superuser OR tiene_permiso_menu(user, "facultades", require_write=True)` | Facultad write |
 | `EsSecretarioAcademico` | `is_superuser OR tiene_permiso_menu(user, "sedes"/"carreras"/etc, require_write=True)` | Sede, Carrera, Plan, TipoMateria, Area write |
-| `EsDirectorCarrera` | `is_superuser OR tiene_permiso_menu(user, "materias", require_write=True)` | Materia, Correlatividad write |
+| `EsDirectorCarrera` | `is_superuser OR tiene_permiso_menu(user, "materias", require_write=True)` | Materia write |
 | `DocenteViewSet` | `is_superuser OR tiene_permiso_menu(user, "docentes", require_write=True)` para write; `tiene_permiso_menu(user, "docentes", require_read=True)` para read | Docentes CRUD |
 | Nomenclador views | `tiene_permiso_menu(user, "configuracion.nomenclador", require_read/write)` | Disciplina, Subdisciplina, Especialidad CRUD |
 
@@ -205,8 +202,7 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | SedeViewSet | SedeListSerializer | SedeSerializer |
 | CarreraViewSet | CarreraListSerializer | CarreraSerializer |
 | PlanEstudioViewSet | PlanEstudioListSerializer (con materias_count) | PlanEstudioSerializer |
-| MateriaViewSet | MateriaSerializer | MateriaDetailSerializer (con correlativas, requisito_de) |
-| CorrelatividadViewSet | CorrelatividadSerializer (único) | CorrelatividadSerializer |
+| MateriaViewSet | MateriaSerializer | MateriaDetailSerializer |
 | TipoMateriaViewSet | TipoMateriaSerializer (único) | TipoMateriaSerializer |
 | AreaViewSet | AreaSerializer (con plan_estudio_codigo, materias_count) | AreaSerializer |
 | EquivalenciaViewSet | EquivalenciaSerializer (único) | EquivalenciaSerializer |
@@ -228,7 +224,6 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | CarreraFilter | Carrera | facultad, activa, nivel, modalidad, codigo_ministerial (icontains), nombre_corto (icontains) |
 | PlanEstudioFilter | PlanEstudio | carrera (exact), vigente (exact), año_inicio_implementacion (exact/gte/lte) |
 | MateriaFilter | Materia | plan_estudio (exact), codigo (exact/icontains), nombre (icontains), año, cuatrimestre, creditos (exact/gte/lte), periodo, tipo (tipo__id) |
-| CorrelatividadViewSet | — | Sin filtros |
 | EquivalenciaViewSet | — | Filtro manual por plan_destino, materia_origen en get_queryset() |
 | DocenteViewSet | — | SearchFields: apellido, nombre, dni. Filtro GET `?activo=true/false`. |
 | CargoDocenteViewSet | — | SearchFields: docente__apellido, docente__nombre, materia__nombre, materia__codigo |
@@ -265,8 +260,8 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 ### ❌ No existe (pendiente)
 | Funcionalidad | Estado |
 |--------------|--------|
-| Gestión de correlatividades (UI) | No existe. Backend: `CorrelatividadViewSet` CRUD + `materias/<id>/correlativas/` GET. Frontend: `services.ts` tiene `createCorrelatividad`, `deleteCorrelatividad`, `materiaCorrelativas` pero sin usar. |
-| Vista detalle de materia | No existe. Backend: `MateriaDetailSerializer` con correlativas y requisito_de. Frontend: `materiaDetalle(id)` en services.ts sin usar. |
+| ~~Consulta de equivalencias~~ | ✅ Implementado en `EquivalenciasPage` (card "Consulta de Equivalencias"): plan origen + plan destino + materias aprobadas → `GET /equivalencias/consultar/`. Muestra destino con badge Total/Parcial (%), badge "Cascada" y resolución. |
+| Vista detalle de materia | No existe. Backend: `MateriaDetailSerializer`. Frontend: `materiaDetalle(id)` en services.ts sin usar. |
 
 ## Frontend — API Layer
 
@@ -279,12 +274,13 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 
 ## Frontend — Auth Flow
 
-1. **Google OAuth**: Click → `/accounts/google/login/` → Google → callback `/api/auth/google/complete/` → redirect a frontend `/auth/callback?access=X&refresh=Y`
+1. **Google OAuth**: Click → `/accounts/google/login/` → Google → callback `/api/auth/google/complete/` → redirect a frontend `/auth/callback#access=X&refresh=Y` (tokens van en el fragment `#`, NO en query string, para que no queden en logs/proxy). `AuthCallback` los lee de `window.location.hash` y limpia la URL con `history.replaceState`.
 2. **Email**: POST `/auth/login/` con email+password → JWT
 3. **Tokens**: `sessionStorage` (se borran al cerrar browser)
 4. **Nuevos usuarios Google**: Se crean con `is_active=False`, redirect a `/auth/pending`
 5. **Aprobación**: Staff → PATCH `/auth/approve-user/<id>/` → asigna el primer grupo disponible (`Group.objects.first()`) si el usuario no tiene grupos.
 6. **Bloqueo sin grupo**: Si el usuario está aprobado pero no tiene grupos → `UserSerializer.needs_group=True` → `ProtectedRoute` lo redirige a `/auth/pending?reason=group` con mensaje "Sin grupo asignado". No puede entrar al sistema hasta que un admin le asigne un grupo.
+7. **Logout**: `AuthContext.logout()` hace `POST /auth/logout/` con el refresh token (lo blacklistea vía `token_blacklist`) antes de limpiar sessionStorage y redirigir. Sin refresh → 400; token inválido → 400 con detalle.
 
 ## Frontend — Layout
 
@@ -330,12 +326,11 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 
 ## Frontend — Gaps conocidos
 
-1. **No hay UI de correlatividades** — Mayor gap. No hay forma de gestionar correlatividades (crear/eliminar prerrequisitos). Backend soporta CRUD completo.
-2. ~~**EquivalenciasPage** — Botones create/edit/delete visibles a todos los usuarios autenticados (falta `canWrite`).~~ ✅ Ahora con `canWrite`.
-3. ~~**Nomenclador** — Tabla plana con búsqueda unificada, uppercase, padStart.~~ ✅ Implementado.
-4. **MateriasPage** — No hay filtro por plan_estudio (el backend lo soporta).
-5. **EquivalenciasPage** — No hay filtro por plan_destino en la lista registrada.
-6. **Servicios no utilizados** — `academicaApi.createMateria`, `updateMateria`, `deleteMateria`, `createCorrelatividad`, `deleteCorrelatividad` definidos en `services.ts` pero no usados (las páginas llaman `apiClient` directamente).
+1. ~~**EquivalenciasPage** — Botones create/edit/delete visibles a todos los usuarios autenticados (falta `canWrite`).~~ ✅ Ahora con `canWrite`.
+2. ~~**Nomenclador** — Tabla plana con búsqueda unificada, uppercase, padStart.~~ ✅ Implementado.
+3. **MateriasPage** — No hay filtro por plan_estudio (el backend lo soporta).
+4. **EquivalenciasPage** — No hay filtro por plan_destino en la lista registrada.
+5. **Servicios no utilizados** — `academicaApi.createMateria`, `updateMateria`, `deleteMateria` definidos en `services.ts` pero no usados (las páginas llaman `apiClient` directamente). Nota: `equivalenciasApi.consultar` quedó sin uso porque `EquivalenciasPage` llama `apiClient` directamente.
 
 ## Frontend — Cambios recientes (histórico para agentes)
 
@@ -394,22 +389,23 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 - **Materias paginación**: agregado estado `page`, llamado paginado a la API, UI con Anterior/Siguiente y contador de registros en MateriasPage.tsx. Se resetea a página 1 al cambiar búsqueda.
 - **CSS minify warning fix**: deshabilitado `build.cssMinify` en `vite.config.ts` para eliminar warnings de `:is()` vacío generados por Tailwind v4.
 - **Backup dumpdata**: creado `backups/sacad_data.json` (75 registros, excluye contenttypes/auth.Permission/admin.LogEntry/sessions) y copiado a `/tmp/sacad_data.json` en el container.
+- **Toast system (Fix 5)**: creado `ToastContext.tsx` (`useToast`/`showToast`, tipos success/error/info, auto-dismiss 4.5s, bottom-right) + `DataState.tsx` (banners loading/error/empty/searching). `main.tsx` envuelto con `ToastProvider`. Las 15 páginas SACAD muestran toasts de éxito (crear/editar/eliminar) y banners de error/empty via DataState.
+- **Button `type` prop + `danger` variant (Fix 1)**: `Button.tsx` ahora acepta `type` (default `"button"`) y `variant="danger"`. 10 botones submit marcados `type="submit"` (9 CRUD + SignInForm). 14 botones "Eliminar" → `variant="danger"`. Arregla el bug de "Cancelar" que enviaba el formulario.
+- **Permisos (Fix 2)**: `FacultadViewSet` write → `EsAdminUniversidad` (antes EsSecretarioAcademico). `DocenteViewSet` y `CargoDocenteViewSet` exigen `tiene_permiso_menu("docentes", require_write=...)` también para reads (`require_read`).
+- **Validaciones (Fix 3)**: `EquivalenciaSerializer.validate` (fix PATCH leyendo de instancia, mismo plan vía engine, sin overlap origen/destino, materias_destino ⊆ plan_destino). `CargoDocenteSerializer.validate` (fecha_fin ≥ fecha_inicio + exigencias de `caracter.requiere_fecha`).
+- **N+1 (Fix 4)**: Equivalencias con `Prefetch` + `select_related("plan_estudio__carrera")`; counts anotados (`Count`) en Facultad/PlanEstudio/Area con fallback `getattr(obj, "x_count", obj.x.count())`; `select_related("tipo","area")` en Materia, `prefetch_related("sedes")` en Carrera, `prefetch_related("titulos_intermedios")` en PlanEstudio; nomenclador GET con annotate `n_sub/n_esp` + check de read; `users_list` con `select_related("profile").prefetch_related("groups")` y `[g.name for g in u.groups.all()]`.
+- **Auth (Fix 6)**: `rest_framework_simplejwt.token_blacklist` en INSTALLED_APPS (migraciones token_blacklist 0001-0012 aplicadas). `logout` valida refresh (400 si falta o inválido). `AuthContext.logout()` llama `POST /auth/logout/` con el refresh antes de limpiar sessionStorage. OAuth callback: tokens vía fragment `#access=...&refresh=...` (no query string) + `AuthCallback` los lee del hash y limpia la URL.
+- **Consulta de equivalencias (Fix 7)**: card "Consulta de Equivalencias" en `EquivalenciasPage`: plan origen + plan destino + materias aprobadas → `GET /equivalencias/consultar/`. Muestra resultado con badge Total/Parcial (%), "Cascada" y resolución.
+- **Deploy seguro (Fix 8)**: entrypoint hace `makemigrations` solo en desarrollo (prod usa migraciones versionadas). `production.py` con `SECURE_PROXY_SSL_HEADER`, `SECURE_CONTENT_TYPE_NOSNIFF`, `SECURE_REFERRER_POLICY`. `docker-compose.prod.yml` con healthcheck de backend (`/admin/login/`) y `depends_on: backend: condition: service_healthy`. `deploy.yml`: build primero (sin downtime), sin `docker container/network prune` destructivos, health checks post-deploy con `python3` urllib. `entrypoint.sh` respeta `$@` si el compose define `command` (el default sigue siendo gunicorn 9 workers).
 
 ## Próximas tareas lógicas
 
-### 1. UI de Correlatividades
-- Agregar sección dentro del modal de Materia (o página separada)
-- Listar correlativas actuales via `GET /materias/{id}/correlativas/`
-- Agregar nueva correlativa: seleccionar materia + tipo (cursar/cursado/aprobar/aprobacion/regular)
-- Eliminar correlativa via `DELETE /correlatividades/{id}/`
-- Permisos: solo `EsDirectorCarrera` (via GroupMenuPermission "materias")
-
-### 2. Backup de datos cargados
+### 1. Backup de datos cargados
 - Existe `backups/sacad_data.json` (75 registros) con datos reales cargados desde el frontend.
 - Para restaurar: `docker compose exec backend python manage.py loaddata /tmp/sacad_data.json`.
 - La copia en /tmp/ del container es la más reciente.
 
-### 3. Plan 2026 — Códigos
+### 2. Plan 2026 — Códigos
 | Año | Período | Códigos |
 |-----|---------|---------|
 | 1 (Bimestres/Cuat) | 1er/2do/3er Bim, 2do Cuat | 510201–510207 |
@@ -418,28 +414,16 @@ Las vistas de `usuarios/views.py` (groups, roles, dominios, usuarios) verifican 
 | 4 (Cuatrimestres) | 1er/2do Cuat | 540201–540207 |
 | Optativas | — | 570201–570205 |
 
-### 4. Correlatividades Plan 2026 — Reglas de promoción
-Para cursar materias de segundo año → aprobar 4 espacios de 1er año.
-Para cursar tercer año → 100% 1er año aprobado + 4 espacios de 2do año.
-Para cursar cuarto año → 100% hasta 2do año aprobado + 4 espacios de 3er año.
-
-**Correlativas complejas:** `540207 Práctica Profesional` ← `530203 + 530205 + 530206 + 540201` (séxtuple). `540202 Control Estratégico` ← `530204 + 520208` (doble).
-
-### 5. Verificar permisos en producción
+### 3. Verificar permisos en producción
 - victor.costa@fce.uncu.edu.ar tiene `is_staff=False`, grupo "administrador", `can_write=True` en todos los menús.
 - Verificar que pueda crear/editar/eliminar en todos los módulos (facultades, sedes, carreras, planes, áreas, materias, docentes, equivalencias, tipos-materia, dominios, roles, usuarios).
 - Verificar que un usuario sin permisos no pueda escribir ni vea menús restringidos.
 
-### 6. Verificar permisos en producción
-- victor.costa@fce.uncu.edu.ar tiene `is_staff=False`, grupo "administrador", `can_write=True` en todos los menús.
-- Verificar que pueda crear/editar/eliminar en todos los módulos (facultades, sedes, carreras, planes, áreas, materias, docentes, equivalencias, tipos-materia, dominios, roles, usuarios).
-- Verificar que un usuario sin permisos no pueda escribir ni vea menús restringidos.
-
-### 7. MateriasPage — filtro por plan de estudio
+### 4. MateriasPage — filtro por plan de estudio
 - El backend ya soporta filtro `?plan_estudio=X` via `MateriaFilter`
 - El frontend no expone este filtro en la UI
 
-### 8. Docentes — próximas mejoras posibles
+### 5. Docentes — próximas mejoras posibles
 - Flat sidebar: eliminar categoría "Docentes" con sub-item, poner "Docentes" directamente en nav principal
 - Filtro adicional por facultad en DocentesPage
 - Exportar lista de docentes a CSV/Excel

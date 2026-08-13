@@ -12,6 +12,8 @@ import { apiClient } from "../../api";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useMenuPermissions } from "../../hooks/useMenuPermissions";
+import { useToast } from "../../context/ToastContext";
+import DataState from "../../components/common/DataState";
 
 interface FacultadOption {
   id: number;
@@ -75,13 +77,14 @@ export default function DocentesPage() {
   const { user } = useAuth();
   const { canWrite: canWriteMenu } = useMenuPermissions();
   const canWrite = user?.is_superuser || canWriteMenu("docentes");
+  const { showToast } = useToast();
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const params = new URLSearchParams();
   if (filter) params.set("search", filter);
   if (statusFilter !== "todos") params.set("activo", statusFilter);
   const qs = params.toString();
-  const { data, loading, refetch } = useApiData<{ results: Docente[] }>(
+  const { data, loading, error, refetch } = useApiData<{ results: Docente[] }>(
     `/docentes/${qs ? `?${qs}` : ""}`,
     [qs]
   );
@@ -173,6 +176,7 @@ export default function DocentesPage() {
       } else {
         await apiClient.post("/docentes/", form);
       }
+      showToast(editingId ? "Docente actualizado" : "Docente creado");
       modal.closeModal();
       refetch();
     } catch (err: unknown) {
@@ -210,6 +214,7 @@ export default function DocentesPage() {
     if (!deletingId) return;
     try {
       await apiClient.delete(`/docentes/${deletingId}/`);
+      showToast("Docente eliminado");
       setDeletingId(null);
       refetch();
     } catch (err: unknown) {
@@ -286,10 +291,16 @@ export default function DocentesPage() {
                     Cargando...
                   </td>
                 </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={10}>
+                    <DataState error={error} />
+                  </td>
+                </tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
-                    No hay docentes registrados
+                  <td colSpan={10}>
+                    <DataState empty searching={!!filter} emptyMessage="No hay docentes registrados" />
                   </td>
                 </tr>
               ) : (
@@ -586,7 +597,7 @@ export default function DocentesPage() {
               >
                 Cancelar
               </Button>
-              <Button size="sm" disabled={saving}>
+              <Button size="sm" type="submit" disabled={saving}>
                 {saving
                   ? "Guardando..."
                   : editingId
@@ -621,7 +632,7 @@ export default function DocentesPage() {
             >
               Cancelar
             </Button>
-            <Button size="sm" className="bg-error-500 text-white hover:bg-error-600" onClick={handleDelete}>
+            <Button size="sm" variant="danger" onClick={handleDelete}>
               Eliminar
             </Button>
           </div>
